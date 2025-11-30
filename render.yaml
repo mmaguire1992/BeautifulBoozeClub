@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: booze-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    plan: free
+    envVars:
+      - key: AUTH_SECRET
+        sync: false # set in Render dashboard
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false # optional; set if you need travel estimates
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: DEFAULT_FUEL_PRICE_PER_LITRE
+        sync: false # optional override
