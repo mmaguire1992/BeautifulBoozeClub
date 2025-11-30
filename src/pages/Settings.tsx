@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,9 +10,51 @@ import { toast } from "sonner";
 
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsType>(getSettings());
+  const [form, setForm] = useState({
+    businessName: settings.business.name,
+    businessAddress: settings.business.address,
+    vatRate: settings.vat.defaultRate.toString(),
+    travelMpg: settings.travel.defaultMpg.toString(),
+    staffWork: settings.hourlyRates.staffWork.toString(),
+    staffTravel: settings.hourlyRates.staffTravel.toString(),
+    beerPrice: settings.costTables.beer.customerPrice.toString(),
+    cocktailPrice: settings.costTables.cocktail.customerPrice.toString(),
+    winePricePerGlass: settings.costTables.wine.customerPricePerGlass.toString(),
+    wineBottleCost: settings.costTables.wine.bottleCost.toString(),
+    wineGlassesPerBottle: settings.costTables.wine.glassesPerBottle.toString(),
+  });
 
   const handleSave = () => {
-    saveSettings(settings);
+    const parsed: SettingsType = {
+      business: {
+        name: form.businessName,
+        address: form.businessAddress,
+        logoUrl: settings.business.logoUrl,
+      },
+      vat: {
+        defaultEnabled: settings.vat.defaultEnabled,
+        defaultRate: parseFloat(form.vatRate) || 0,
+      },
+      travel: {
+        defaultMpg: parseFloat(form.travelMpg) || 0,
+        costPerMile: settings.travel.costPerMile,
+      },
+      hourlyRates: {
+        staffWork: parseFloat(form.staffWork) || 0,
+        staffTravel: parseFloat(form.staffTravel) || 0,
+      },
+      costTables: {
+        beer: { customerPrice: parseFloat(form.beerPrice) || 0 },
+        cocktail: { customerPrice: parseFloat(form.cocktailPrice) || 0 },
+        wine: {
+          customerPricePerGlass: parseFloat(form.winePricePerGlass) || 0,
+          bottleCost: parseFloat(form.wineBottleCost) || 0,
+          glassesPerBottle: parseFloat(form.wineGlassesPerBottle) || 1,
+        },
+      },
+    };
+    setSettings(parsed);
+    saveSettings(parsed);
     toast.success("Settings saved successfully");
   };
 
@@ -35,25 +77,15 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Business Name</Label>
               <Input
-                value={settings.business.name}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    business: { ...settings.business, name: e.target.value },
-                  })
-                }
+                value={form.businessName}
+                onChange={(e) => setForm({ ...form, businessName: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label>Address</Label>
               <Input
-                value={settings.business.address}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    business: { ...settings.business, address: e.target.value },
-                  })
-                }
+                value={form.businessAddress}
+                onChange={(e) => setForm({ ...form, businessAddress: e.target.value })}
               />
             </div>
           </CardContent>
@@ -67,16 +99,11 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Default VAT Rate (%)</Label>
               <Input
-                type="number"
+                type="text"
                 min="0"
                 max="100"
-                value={settings.vat.defaultRate}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    vat: { ...settings.vat, defaultRate: parseFloat(e.target.value) },
-                  })
-                }
+                value={form.vatRate}
+                onChange={(e) => setForm({ ...form, vatRate: e.target.value })}
               />
             </div>
           </CardContent>
@@ -90,15 +117,10 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Default MPG</Label>
               <Input
-                type="number"
+                type="text"
                 min="0"
-                value={settings.travel.defaultMpg}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    travel: { ...settings.travel, defaultMpg: parseFloat(e.target.value) },
-                  })
-                }
+                value={form.travelMpg}
+                onChange={(e) => setForm({ ...form, travelMpg: e.target.value })}
               />
             </div>
           </CardContent>
@@ -112,29 +134,19 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Staff Work (€/hour)</Label>
               <Input
-                type="number"
+                type="text"
                 min="0"
-                value={settings.hourlyRates.staffWork}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    hourlyRates: { ...settings.hourlyRates, staffWork: parseFloat(e.target.value) },
-                  })
-                }
+                value={form.staffWork}
+                onChange={(e) => setForm({ ...form, staffWork: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label>Staff Travel (€/hour)</Label>
               <Input
-                type="number"
+                type="text"
                 min="0"
-                value={settings.hourlyRates.staffTravel}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    hourlyRates: { ...settings.hourlyRates, staffTravel: parseFloat(e.target.value) },
-                  })
-                }
+                value={form.staffTravel}
+                onChange={(e) => setForm({ ...form, staffTravel: e.target.value })}
               />
             </div>
           </CardContent>
@@ -148,91 +160,51 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Beer customer price (€)</Label>
               <Input
-                type="number"
+                type="text"
                 min="0"
                 step="0.1"
-                value={settings.costTables.beer.customerPrice}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    costTables: {
-                      ...settings.costTables,
-                      beer: { ...settings.costTables.beer, customerPrice: parseFloat(e.target.value) || 0 },
-                    },
-                  })
-                }
+                value={form.beerPrice}
+                onChange={(e) => setForm({ ...form, beerPrice: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label>Cocktail customer price (€)</Label>
               <Input
-                type="number"
+                type="text"
                 min="0"
                 step="0.1"
-                value={settings.costTables.cocktail.customerPrice}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    costTables: {
-                      ...settings.costTables,
-                      cocktail: { ...settings.costTables.cocktail, customerPrice: parseFloat(e.target.value) || 0 },
-                    },
-                  })
-                }
+                value={form.cocktailPrice}
+                onChange={(e) => setForm({ ...form, cocktailPrice: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label>Wine customer price per glass (€)</Label>
               <Input
-                type="number"
+                type="text"
                 min="0"
                 step="0.1"
-                value={settings.costTables.wine.customerPricePerGlass}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    costTables: {
-                      ...settings.costTables,
-                      wine: { ...settings.costTables.wine, customerPricePerGlass: parseFloat(e.target.value) || 0 },
-                    },
-                  })
-                }
+                value={form.winePricePerGlass}
+                onChange={(e) => setForm({ ...form, winePricePerGlass: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label>Wine bottle cost (€)</Label>
               <Input
-                type="number"
+                type="text"
                 min="0"
                 step="0.1"
-                value={settings.costTables.wine.bottleCost}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    costTables: {
-                      ...settings.costTables,
-                      wine: { ...settings.costTables.wine, bottleCost: parseFloat(e.target.value) || 0 },
-                    },
-                  })
-                }
+                value={form.wineBottleCost}
+                onChange={(e) => setForm({ ...form, wineBottleCost: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label>Glasses per bottle</Label>
               <Input
-                type="number"
+                type="text"
                 min="1"
                 step="1"
-                value={settings.costTables.wine.glassesPerBottle}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    costTables: {
-                      ...settings.costTables,
-                      wine: { ...settings.costTables.wine, glassesPerBottle: parseFloat(e.target.value) || 1 },
-                    },
-                  })
-                }
+                value={form.wineGlassesPerBottle}
+                onChange={(e) => setForm({ ...form, wineGlassesPerBottle: e.target.value })}
               />
             </div>
           </CardContent>
