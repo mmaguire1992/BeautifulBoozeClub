@@ -1,0 +1,48 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Enquiry {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  name          String
+  email         String
+  service       String
+  eventType     String
+  location      String
+  preferredDate DateTime
+  preferredTime String
+  guests        Int
+  notes         String?
+  status        String   @default("New")
+  quotes        Quote[]
+}
+
+model Quote {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  enquiryId    String?
+  enquiry      Enquiry? @relation(fields: [enquiryId], references: [id])
+  customerName  String
+  customerEmail String
+  eventType     String
+  eventLocation String
+  eventDate     DateTime
+  eventTime     String
+  guests        Int
+  status        String   @default("Draft")
+  vatEnabled    Boolean  @default(false)
+  vatRate       Float    @default(23)
+  netTotal      Float    @default(0)
+  vatTotal      Float    @default(0)
+  grossTotal    Float    @default(0)
+}
