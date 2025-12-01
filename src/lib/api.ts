@@ -77,6 +77,8 @@ export const fetchEnquiries = async (): Promise<Enquiry[]> => apiFetch("/api/enq
 
 export const createEnquiry = async (body: CreateEnquiryInput): Promise<Enquiry> =>
   apiFetch("/api/enquiries", { method: "POST", body: JSON.stringify(body) });
+export const deleteEnquiry = async (id: string) =>
+  apiFetch<{ ok: boolean }>(`/api/enquiries/${id}`, { method: "DELETE" });
 
 // Quotes
 export type QuotePayload = Omit<Quote, "id" | "createdAt" | "updatedAt"> & { id?: string };

@@ -16,7 +16,7 @@ import { Plus, Search, Eye, FileText, Trash2 } from "lucide-react";
 import { Enquiry } from "@/types";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { fetchEnquiries } from "@/lib/api";
+import { fetchEnquiries, deleteEnquiry } from "@/lib/api";
 
 export default function Enquiries() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
@@ -40,7 +40,7 @@ export default function Enquiries() {
     load();
   }, []);
 
-  const filteredEnquiries = enquiries.filter(e =>
+  const filteredEnquiries = enquiries.filter((e) =>
     e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     e.eventType.toLowerCase().includes(searchTerm.toLowerCase())
@@ -136,7 +136,20 @@ export default function Enquiries() {
                             <FileText className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button variant="ghost" size="icon" disabled title="Delete not supported yet">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={async () => {
+                            if (!confirm("Delete this enquiry? This cannot be undone.")) return;
+                            try {
+                              await deleteEnquiry(enquiry.id);
+                              setEnquiries((prev) => prev.filter((e) => e.id !== enquiry.id));
+                              toast.success("Enquiry deleted");
+                            } catch (err: any) {
+                              toast.error(err?.message || "Failed to delete enquiry");
+                            }
+                          }}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

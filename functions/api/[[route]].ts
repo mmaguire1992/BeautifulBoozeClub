@@ -385,6 +385,13 @@ app.get("/api/travel-estimate", async (c) => {
   }
 });
 
+app.delete("/api/enquiries/:id", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const res = await c.env.DB.prepare("DELETE FROM Enquiry WHERE id = ?").bind(id).run();
+  if (res.meta.changes === 0) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true });
+});
+
 // Quotes CRUD
 app.get("/api/quotes", requireAuth, async (c) => {
   const res = await c.env.DB.prepare(
