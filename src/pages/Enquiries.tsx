@@ -13,25 +13,32 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Search, Eye, FileText, Trash2 } from "lucide-react";
-import { getEnquiries, saveEnquiries } from "@/lib/storage";
 import { Enquiry } from "@/types";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { fetchEnquiries } from "@/lib/api";
 
 export default function Enquiries() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setEnquiries(getEnquiries());
+    const load = async () => {
+      try {
+        setError(null);
+        const data = await fetchEnquiries();
+        setEnquiries(data);
+      } catch (err: any) {
+        setError(err?.message || "Failed to load enquiries");
+        toast.error(err?.message || "Failed to load enquiries");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
-
-  const handleDelete = (id: string) => {
-    const updated = enquiries.filter(e => e.id !== id);
-    setEnquiries(updated);
-    saveEnquiries(updated);
-    toast.success("Enquiry deleted");
-  };
 
   const filteredEnquiries = enquiries.filter(e =>
     e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -91,7 +98,19 @@ export default function Enquiries() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEnquiries.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    Loading enquiries...
+                  </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-destructive">
+                    {error}
+                  </TableCell>
+                </TableRow>
+              ) : filteredEnquiries.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground">
                     No enquiries found
@@ -117,11 +136,7 @@ export default function Enquiries() {
                             <FileText className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => handleDelete(enquiry.id)}
-                        >
+                        <Button variant="ghost" size="icon" disabled title="Delete not supported yet">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

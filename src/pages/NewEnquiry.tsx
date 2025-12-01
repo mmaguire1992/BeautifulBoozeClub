@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getEnquiries, saveEnquiries } from "@/lib/storage";
+import { createEnquiry } from "@/lib/api";
 import { Enquiry } from "@/types";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
@@ -32,6 +32,7 @@ export default function NewEnquiry() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -55,37 +56,37 @@ export default function NewEnquiry() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (createQuote = false) => {
+  const handleSubmit = async (createQuote = false) => {
     if (!validate()) {
       toast.error("Please fix the errors in the form");
       return;
     }
 
-    const enquiry: Enquiry = {
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      name: formData.name,
-      email: formData.email,
-      service: formData.service as Enquiry['service'],
-      eventType: formData.eventType,
-      location: formData.location,
-      preferredDate: formData.preferredDate,
-      preferredTime: formData.preferredTime,
-      guests: parseInt(formData.guests),
-      notes: formData.notes,
-      status: createQuote ? 'Quoted' : 'New',
-    };
+    setSubmitting(true);
+    try {
+      const enquiry: Enquiry = await createEnquiry({
+        name: formData.name,
+        email: formData.email,
+        service: formData.service as Enquiry["service"],
+        eventType: formData.eventType,
+        location: formData.location,
+        preferredDate: formData.preferredDate,
+        preferredTime: formData.preferredTime,
+        guests: parseInt(formData.guests),
+        notes: formData.notes || undefined,
+      });
 
-    const enquiries = getEnquiries();
-    enquiries.push(enquiry);
-    saveEnquiries(enquiries);
+      toast.success("Enquiry saved successfully");
 
-    toast.success("Enquiry saved successfully");
-
-    if (createQuote) {
-      navigate(`/quotes/new?enquiryId=${enquiry.id}`);
-    } else {
-      navigate("/enquiries");
+      if (createQuote) {
+        navigate(`/quotes/new?enquiryId=${enquiry.id}`);
+      } else {
+        navigate("/enquiries");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to save enquiry");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -223,10 +224,10 @@ export default function NewEnquiry() {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button onClick={() => handleSubmit(false)}>
+            <Button onClick={() => handleSubmit(false)} disabled={submitting}>
               Save Enquiry
             </Button>
-            <Button variant="outline" onClick={() => handleSubmit(true)}>
+            <Button variant="outline" onClick={() => handleSubmit(true)} disabled={submitting}>
               Save & Create Quote
             </Button>
             <Button variant="ghost" onClick={() => navigate("/enquiries")}>

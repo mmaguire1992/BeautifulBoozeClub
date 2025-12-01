@@ -12,3 +12,34 @@ CREATE TABLE IF NOT EXISTS Enquiry (
   notes TEXT,
   status TEXT DEFAULT 'New'
 );
+
+CREATE TABLE IF NOT EXISTS Quote (
+  id TEXT PRIMARY KEY,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now')),
+  status TEXT NOT NULL,
+  enquiryId TEXT,
+  customer TEXT NOT NULL, -- JSON string
+  event TEXT NOT NULL,    -- JSON string
+  lines TEXT NOT NULL,    -- JSON string
+  vat TEXT NOT NULL,      -- JSON string
+  totals TEXT NOT NULL    -- JSON string
+);
+
+CREATE TABLE IF NOT EXISTS Booking (
+  id TEXT PRIMARY KEY,
+  quoteId TEXT,
+  customer TEXT NOT NULL, -- JSON string
+  event TEXT NOT NULL,    -- JSON string
+  total REAL NOT NULL,
+  depositPaid REAL DEFAULT 0,
+  paymentStatus TEXT DEFAULT 'Pending',
+  status TEXT DEFAULT 'Confirmed',
+  createdAt TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS Costing (
+  id TEXT PRIMARY KEY,
+  quoteId TEXT UNIQUE,
+  data TEXT NOT NULL -- JSON string
+);

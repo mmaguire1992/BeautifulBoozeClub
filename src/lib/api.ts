@@ -1,6 +1,22 @@
+import type { Enquiry, Quote, Booking, CostingData } from "@/types";
+
 const API_BASE =
   import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
   (typeof window !== "undefined" ? window.location.origin : "http://localhost:4000");
+
+const apiFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
+  const res = await fetch(`${API_BASE}${path}`, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = (data && (data.error || data.message)) || res.statusText || "Request failed";
+    throw new Error(message);
+  }
+  return data as T;
+};
 
 export type TravelEstimate = {
   provider: string;
@@ -42,18 +58,50 @@ export const fetchTravelEstimate = async ({
   }
 
   const url = `${API_BASE}/api/travel-estimate?${params.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    let message = "Travel estimate failed";
-    try {
-      const errorData = await response.json();
-      if (typeof errorData.error === "string") {
-        message = errorData.error;
-      }
-    } catch {
-      // ignore json parsing errors
-    }
-    throw new Error(message);
-  }
-  return response.json();
+  return apiFetch<TravelEstimate>(url);
 };
+
+export type CreateEnquiryInput = {
+  name: string;
+  email: string;
+  service: string;
+  eventType: string;
+  location: string;
+  preferredDate: string;
+  preferredTime: string;
+  guests: number;
+  notes?: string;
+};
+
+export const fetchEnquiries = async (): Promise<Enquiry[]> => apiFetch("/api/enquiries");
+
+export const createEnquiry = async (body: CreateEnquiryInput): Promise<Enquiry> =>
+  apiFetch("/api/enquiries", { method: "POST", body: JSON.stringify(body) });
+
+// Quotes
+export type QuotePayload = Omit<Quote, "id" | "createdAt" | "updatedAt"> & { id?: string };
+
+export const fetchQuotes = async (): Promise<Quote[]> => apiFetch("/api/quotes");
+export const fetchQuote = async (id: string): Promise<Quote> => apiFetch(`/api/quotes/${id}`);
+export const createQuote = async (body: QuotePayload): Promise<Quote> =>
+  apiFetch("/api/quotes", { method: "POST", body: JSON.stringify(body) });
+export const updateQuote = async (id: string, body: QuotePayload): Promise<Quote> =>
+  apiFetch(`/api/quotes/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const deleteQuote = async (id: string) => apiFetch<{ ok: boolean }>(`/api/quotes/${id}`, { method: "DELETE" });
+export const acceptQuote = async (id: string) =>
+  apiFetch<{ quote: Quote; booking: Booking | null }>(`/api/quotes/${id}/accept`, { method: "POST" });
+export const updateQuoteStatus = async (id: string, status: Quote["status"]) =>
+  apiFetch<Quote>(`/api/quotes/${id}/status`, { method: "POST", body: JSON.stringify({ status }) });
+
+// Costing
+export const fetchCosting = async (quoteId: string) =>
+  apiFetch<{ data: CostingData | null }>(`/api/quotes/${quoteId}/costing`);
+export const saveCosting = async (quoteId: string, data: CostingData) =>
+  apiFetch(`/api/quotes/${quoteId}/costing`, { method: "PUT", body: JSON.stringify({ data }) });
+
+// Bookings
+export const fetchBookings = async (): Promise<Booking[]> => apiFetch("/api/bookings");
+export const updateBooking = async (
+  id: string,
+  body: Partial<Pick<Booking, "paymentStatus" | "depositPaid" | "status">>
+) => apiFetch<Booking>(`/api/bookings/${id}`, { method: "PATCH", body: JSON.stringify(body) });
