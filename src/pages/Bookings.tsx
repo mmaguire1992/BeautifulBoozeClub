@@ -11,23 +11,36 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Calendar, CreditCard, CheckCircle2, Trash2 } from "lucide-react";
-import { getBookings, saveBookings } from "@/lib/storage";
 import { Booking } from "@/types";
 import { format } from "date-fns";
+import { fetchBookings, updateBooking, deleteBooking } from "@/lib/api";
 
 export default function Bookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
 
   useEffect(() => {
-    setBookings(getBookings());
+    const load = async () => {
+      try {
+        const data = await fetchBookings();
+        setBookings(data);
+      } catch {
+        // ignore for now
+      }
+    };
+    load();
   }, []);
 
-  const updateBookingPayment = (bookingId: string, paymentStatus: Booking["paymentStatus"], depositPaid?: number) => {
-    const next = bookings.map((b) =>
-      b.id === bookingId ? { ...b, paymentStatus, depositPaid: depositPaid ?? b.depositPaid } : b
-    );
-    setBookings(next);
-    saveBookings(next);
+  const updateBookingPayment = async (
+    bookingId: string,
+    paymentStatus: Booking["paymentStatus"],
+    depositPaid?: number
+  ) => {
+    try {
+      const updated = await updateBooking(bookingId, { paymentStatus, depositPaid });
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? updated : b)));
+    } catch {
+      // ignore
+    }
   };
 
   const handleDepositPaid = (booking: Booking) => {
@@ -42,11 +55,14 @@ export default function Bookings() {
     updateBookingPayment(booking.id, "PaidInFull", booking.total);
   };
 
-  const handleDelete = (bookingId: string) => {
+  const handleDelete = async (bookingId: string) => {
     if (!confirm("Remove this booking? This cannot be undone.")) return;
-    const next = bookings.filter((b) => b.id !== bookingId);
-    setBookings(next);
-    saveBookings(next);
+    try {
+      await deleteBooking(bookingId);
+      setBookings((prev) => prev.filter((b) => b.id !== bookingId));
+    } catch (err) {
+      // ignore
+    }
   };
 
   const getStatusBadge = (status: Booking['status']) => {

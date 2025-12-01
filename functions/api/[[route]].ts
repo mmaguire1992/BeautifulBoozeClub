@@ -586,4 +586,11 @@ app.patch("/api/bookings/:id", requireAuth, async (c) => {
   return c.json(toBooking(row));
 });
 
+app.delete("/api/bookings/:id", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const res = await c.env.DB.prepare("DELETE FROM Booking WHERE id = ?").bind(id).run();
+  if (res.meta.changes === 0) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true });
+});
+
 export const onRequest = handle(app);

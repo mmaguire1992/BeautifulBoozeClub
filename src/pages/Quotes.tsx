@@ -12,18 +12,34 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Eye, FileDown, Pencil, Trash2, CheckCircle } from "lucide-react";
-import { getQuotes, saveQuotes, getSettings, getCostingData, saveCostingData, upsertBookingFromQuote, getCostingByQuoteId } from "@/lib/storage";
 import { Quote } from "@/types";
 import { format } from "date-fns";
 import { generateCustomerQuotePdf } from "@/lib/pdf";
 import { toast } from "sonner";
 import { openGoogleCalendarEvent } from "@/lib/calendar";
 import { calculateInvoiceTotals } from "@/lib/invoice";
+import { acceptQuote, deleteQuote, fetchCosting, fetchQuotes, fetchQuote, updateQuoteStatus } from "@/lib/api";
+import { getSettings } from "@/lib/storage";
 
 export default function Quotes() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    setQuotes(getQuotes());
+    const load = async () => {
+      try {
+        setError(null);
+        const data = await fetchQuotes();
+        setQuotes(data);
+      } catch (err: any) {
+        setError(err?.message || "Failed to load quotes");
+        toast.error(err?.message || "Failed to load quotes");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const getStatusBadge = (status: Quote["status"]) => {
@@ -49,27 +65,30 @@ export default function Quotes() {
     }
   };
 
-  const handleAccept = (quote: Quote) => {
-    const updatedQuotes = getQuotes().map((q) =>
-      q.id === quote.id ? { ...q, status: "Accepted", updatedAt: new Date().toISOString() } : q
-    );
-    saveQuotes(updatedQuotes);
-    setQuotes(updatedQuotes);
-    const booking = upsertBookingFromQuote({ ...quote, status: "Accepted" });
-    openGoogleCalendarEvent(quote);
-    toast.success(`Quote accepted and booking created for ${booking.event.type}`);
+  const handleAccept = async (quote: Quote) => {
+    try {
+      const { quote: updated, booking } = await acceptQuote(quote.id);
+      setQuotes((prev) => prev.map((q) => (q.id === quote.id ? updated : q)));
+      if (booking) {
+        openGoogleCalendarEvent(updated);
+        toast.success(`Quote accepted and booking created for ${booking.event.type}`);
+      } else {
+        toast.success("Quote accepted");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to accept quote");
+    }
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm("Delete this quote and its costing? This cannot be undone.")) {
-      return;
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this quote and its costing? This cannot be undone.")) return;
+    try {
+      await deleteQuote(id);
+      setQuotes((prev) => prev.filter((q) => q.id !== id));
+      toast.success("Quote deleted");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete quote");
     }
-    const updated = getQuotes().filter((q) => q.id !== id);
-    saveQuotes(updated);
-    const costings = getCostingData().filter((c) => c.quoteId !== id);
-    saveCostingData(costings);
-    setQuotes(updated);
-    toast.success("Quote deleted");
   };
 
   return (
@@ -105,7 +124,19 @@ export default function Quotes() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {quotes.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    Loading quotes...
+                  </TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-destructive">
+                    {error}
+                  </TableCell>
+                </TableRow>
+              ) : quotes.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground">
                     No quotes found

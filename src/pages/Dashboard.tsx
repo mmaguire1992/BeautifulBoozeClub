@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Mail, FileText, CheckCircle, Calendar, ArrowRight } from "lucide-react";
-import { getEnquiries, getQuotes, getBookings } from "@/lib/storage";
 import { Enquiry, Quote, Booking } from "@/types";
 import { format, isToday, isTomorrow } from "date-fns";
+import { fetchEnquiries, fetchQuotes, fetchBookings } from "@/lib/api";
 
 export default function Dashboard() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
@@ -14,9 +14,17 @@ export default function Dashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
 
   useEffect(() => {
-    setEnquiries(getEnquiries());
-    setQuotes(getQuotes());
-    setBookings(getBookings());
+    const load = async () => {
+      try {
+        const [enq, quo, book] = await Promise.all([fetchEnquiries(), fetchQuotes(), fetchBookings()]);
+        setEnquiries(enq);
+        setQuotes(quo);
+        setBookings(book);
+      } catch {
+        // ignore for dashboard
+      }
+    };
+    load();
   }, []);
 
   const newEnquiries = enquiries.filter(e => e.status === 'New').length;

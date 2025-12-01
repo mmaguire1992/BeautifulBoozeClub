@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,33 +7,47 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { ArrowLeft, FileDown, Pencil, Trash2, Calculator, Mail } from "lucide-react";
-import {
-  getQuotes,
-  saveQuotes,
-  getSettings,
-  getCostingData,
-  saveCostingData,
-  getCostingByQuoteId,
-  upsertBookingFromQuote,
-} from "@/lib/storage";
+import { getSettings } from "@/lib/storage";
 import { CostingData, Quote } from "@/types";
 import { generateCustomerQuotePdfBlob, generateCostingPdfBlob } from "@/lib/pdf";
 import { openGoogleCalendarEvent } from "@/lib/calendar";
 import { toast } from "sonner";
 import CostingWorkspace from "@/components/CostingWorkspace";
 import { calculateInvoiceTotals } from "@/lib/invoice";
+import {
+  fetchQuote,
+  deleteQuote,
+  fetchCosting,
+  saveCosting as saveCostingApi,
+  acceptQuote,
+  updateQuoteStatus,
+} from "@/lib/api";
 
 const formatCurrency = (value: number) => `€${value.toFixed(2)}`;
 
 export default function QuoteDetails() {
   const { quoteId } = useParams();
   const navigate = useNavigate();
-  const quote: Quote | undefined = getQuotes().find((q) => q.id === quoteId);
+  const [quote, setQuote] = useState<Quote | null>(null);
   const [tab, setTab] = useState<"quote" | "costing">("quote");
-  const [costing, setCosting] = useState<CostingData | null>(() =>
-    quote ? getCostingByQuoteId(quote.id) ?? null : null
-  );
+  const [costing, setCosting] = useState<CostingData | null>(null);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!quoteId) return;
+      try {
+        const q = await fetchQuote(quoteId);
+        setQuote(q);
+        const cost = await fetchCosting(quoteId);
+        if (cost?.data) setCosting(cost.data as CostingData);
+      } catch {
+        toast.error("Quote not found");
+        navigate("/quotes");
+      }
+    };
+    load();
+  }, [quoteId, navigate]);
 
   const invoice = useMemo(
     () => (quote ? calculateInvoiceTotals(quote, { includeInternal: false, costing: costing ?? undefined }) : null),
@@ -63,7 +77,7 @@ export default function QuoteDetails() {
 
   const handleCostingInvoice = async () => {
     if (!quote) return;
-    const costingToUse = costing || getCostingByQuoteId(quote.id);
+    const costingToUse = costing;
     if (!costingToUse) {
       toast.error("Add costing details first.");
       return;
@@ -116,36 +130,43 @@ export default function QuoteDetails() {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!quote) return;
     if (!confirm("Delete this quote and its costing? This cannot be undone.")) return;
-    const updated = getQuotes().filter((q) => q.id !== quote.id);
-    saveQuotes(updated);
-    saveCostingData(getCostingData().filter((c) => c.quoteId !== quote.id));
-    toast.success("Quote deleted");
-    navigate("/quotes");
-  };
-
-  const updateStatus = (status: Quote["status"], options?: { skipRefresh?: boolean }) => {
-    if (!quote) return;
-    const all = getQuotes();
-    const idx = all.findIndex((q) => q.id === quote.id);
-    if (idx === -1) return;
-    all[idx] = { ...all[idx], status, updatedAt: new Date().toISOString() };
-    saveQuotes(all);
-    toast.success(`Quote marked ${status}`);
-    if (!options?.skipRefresh) {
-      navigate(0);
+    try {
+      await deleteQuote(quote.id);
+      toast.success("Quote deleted");
+      navigate("/quotes");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete quote");
     }
   };
 
-  const handleAccept = () => {
+  const updateStatus = async (status: Quote["status"], options?: { skipRefresh?: boolean }) => {
     if (!quote) return;
-    updateStatus("Accepted", { skipRefresh: true });
-    const booking = upsertBookingFromQuote(quote);
-    openGoogleCalendarEvent(quote);
-    toast.success(`Booking created for ${booking.event.type}`);
-    navigate("/bookings");
+    try {
+      const updated = await updateQuoteStatus(quote.id, status);
+      setQuote(updated);
+      toast.success(`Quote marked ${status}`);
+      if (!options?.skipRefresh) {
+        navigate(0);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update status");
+    }
+  };
+
+  const handleAccept = async () => {
+    if (!quote) return;
+    try {
+      const { quote: updated } = await acceptQuote(quote.id);
+      setQuote(updated);
+      openGoogleCalendarEvent(updated);
+      toast.success("Quote accepted");
+      navigate("/bookings");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to accept quote");
+    }
   };
 
   if (!quote) {

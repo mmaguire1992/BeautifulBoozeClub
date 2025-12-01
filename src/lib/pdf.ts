@@ -2,7 +2,6 @@ import pdfMake from "pdfmake/build/pdfmake";
 import * as pdfFonts from "pdfmake/build/vfs_fonts";
 import logo from "@/assets/logo.png";
 import { Quote, Settings, CostingData, DrinkBreakdownItem, Booking } from "@/types";
-import { getBookings, getCostingByQuoteId } from "./storage";
 import type { Content, StyleDictionary, TDocumentDefinitions } from "pdfmake/interfaces";
 import { buildInvoiceLines, calculateInvoiceTotals, type InvoiceLine } from "./invoice";
 import { getEurToGbpRate } from "./fx";
@@ -417,8 +416,8 @@ const getVariantConfig = (variant: QuotePdfVariant) => {
   };
 };
 
-const getCostingForQuote = (quote: Quote) => (quote.id ? getCostingByQuoteId(quote.id) : undefined);
-const getBookingForQuote = (quote: Quote) => getBookings().find((b) => b.quoteId === quote.id);
+const getCostingForQuote = (_quote: Quote) => undefined;
+const getBookingForQuote = (_quote: Quote) => undefined as Booking | undefined;
 
 const buildQuoteDocDefinition = async ({
   quote,

@@ -105,3 +105,5 @@ export const updateBooking = async (
   id: string,
   body: Partial<Pick<Booking, "paymentStatus" | "depositPaid" | "status">>
 ) => apiFetch<Booking>(`/api/bookings/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+export const deleteBooking = async (id: string) =>
+  apiFetch<{ ok: boolean }>(`/api/bookings/${id}`, { method: "DELETE" });

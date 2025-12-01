@@ -7,9 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Plus, Minus, Trash2, FileDown } from "lucide-react";
-import { getEnquiries, saveEnquiries, getQuotes, saveQuotes, getSettings, getCostingByQuoteId } from "@/lib/storage";
+import { getSettings } from "@/lib/storage";
 import { CostingData, Quote, QuoteLine } from "@/types";
-import { fetchTravelEstimate, type TravelEstimate } from "@/lib/api";
+import {
+  fetchTravelEstimate,
+  type TravelEstimate,
+  fetchEnquiries,
+  fetchQuote,
+  createQuote,
+  updateQuote,
+  acceptQuote,
+  fetchCosting,
+  saveCosting,
+} from "@/lib/api";
 import { toast } from "sonner";
 import CostingWorkspace from "@/components/CostingWorkspace";
 import { generateId } from "@/lib/id";
@@ -122,98 +132,94 @@ export default function NewQuote() {
   const [costing, setCosting] = useState<CostingData | null>(null);
 
   useEffect(() => {
-    if (enquiryId) {
-      const enquiries = getEnquiries();
-      const enquiry = enquiries.find(e => e.id === enquiryId);
-      if (enquiry) {
-        setCustomer({ name: enquiry.name, email: enquiry.email });
-        setEvent({
-          type: enquiry.eventType,
-          location: enquiry.location,
-          date: enquiry.preferredDate,
-          time: enquiry.preferredTime,
-          guests: enquiry.guests,
-        });
-        setGuestInput(String(enquiry.guests ?? "0"));
-        setTravelDestination(enquiry.location);
+    const load = async () => {
+      if (enquiryId) {
+        try {
+          const list = await fetchEnquiries();
+          const enquiry = list.find((e) => e.id === enquiryId);
+          if (enquiry) {
+            setCustomer({ name: enquiry.name, email: enquiry.email });
+            setEvent({
+              type: enquiry.eventType,
+              location: enquiry.location,
+              date: enquiry.preferredDate,
+              time: enquiry.preferredTime,
+              guests: enquiry.guests,
+            });
+            setGuestInput(String(enquiry.guests ?? "0"));
+            setTravelDestination(enquiry.location);
+          }
+        } catch {
+          // ignore
+        }
       }
-    }
-  }, [enquiryId]);
 
-  useEffect(() => {
-    if (!quoteId) return;
-    const existing = getQuotes().find((q) => q.id === quoteId);
-    if (!existing) {
-      toast.error("Quote not found");
-      navigate("/quotes");
-      return;
-    }
-    setOriginalQuote(existing);
-    setCustomer(existing.customer);
-    setEvent(existing.event);
-    setGuestInput(String(existing.event.guests ?? "0"));
-    setVatEnabled(existing.vat.enabled);
-    setVatRate(existing.vat.rate);
-
-    existing.lines.forEach((line) => {
-      switch (line.kind) {
-        case "package":
-          setPackages((prev) =>
-            prev.map((p) => (p.name === line.name ? { ...p, qty: line.qty } : p))
-          );
-          break;
-        case "class":
-          setClassEnabled(true);
-          setClassTier(line.tier);
-          setClassGuests(line.guests);
-          break;
-        case "boozyBrunch":
-          setBrunchEnabled(true);
-          setBrunchGuests(line.guests);
-          break;
-        case "guestFee":
-          setGuestFeeEnabled(true);
-          setGuestFeeCocktails(String(line.guests ?? "0"));
-          setGuestFeeCustomerPrice(line.pricePerGuest);
-          break;
-        case "custom":
-          setCustomItems((prev) => [
-            ...prev,
-            {
-              id: generateId(),
-              description: line.description,
-              unitPrice: round2(line.unitPrice),
-              ownerCost: "ownerCost" in line ? round2((line as any).ownerCost || 0) : 0,
-              qty: whole(line.qty),
-            },
-          ]);
-          break;
-        case "staffWork":
-          setStaffWorkHours(line.hours);
-          break;
-        case "staffTravel":
-          setStaffTravelHours(line.hours);
-          break;
-        case "petrol":
-          setPetrolMiles(line.miles ?? 0);
-          setPetrolPrice(line.pricePerLitre ?? petrolPrice);
-          setPetrolMpg(line.mpg ?? petrolMpg);
-          break;
+      if (quoteId) {
+        try {
+          const existing = await fetchQuote(quoteId);
+          setOriginalQuote(existing);
+          setCustomer(existing.customer);
+          setEvent(existing.event);
+          setGuestInput(String(existing.event.guests ?? "0"));
+          setVatEnabled(existing.vat.enabled);
+          setVatRate(existing.vat.rate);
+          existing.lines.forEach((line) => {
+            switch (line.kind) {
+              case "package":
+                setPackages((prev) => prev.map((p) => (p.name === line.name ? { ...p, qty: line.qty } : p)));
+                break;
+              case "class":
+                setClassEnabled(true);
+                setClassTier(line.tier);
+                setClassGuests(line.guests);
+                break;
+              case "boozyBrunch":
+                setBrunchEnabled(true);
+                setBrunchGuests(line.guests);
+                break;
+              case "guestFee":
+                setGuestFeeEnabled(true);
+                setGuestFeeCocktails(String(line.guests ?? "0"));
+                setGuestFeeCustomerPrice(line.pricePerGuest);
+                break;
+              case "custom":
+                setCustomItems((prev) => [
+                  ...prev,
+                  {
+                    id: generateId(),
+                    description: line.description,
+                    unitPrice: round2(line.unitPrice),
+                    ownerCost: "ownerCost" in line ? round2((line as any).ownerCost || 0) : 0,
+                    qty: whole(line.qty),
+                  },
+                ]);
+                break;
+              case "staffWork":
+                setStaffWorkHours(line.hours);
+                break;
+              case "staffTravel":
+                setStaffTravelHours(line.hours);
+                break;
+              case "petrol":
+                setPetrolMiles(line.miles ?? 0);
+                setPetrolPrice(line.pricePerLitre ?? petrolPrice);
+                setPetrolMpg(line.mpg ?? petrolMpg);
+                break;
+            }
+          });
+          if (existing.event.location) {
+            setTravelDestination(existing.event.location);
+          }
+          const cost = await fetchCosting(existing.id);
+          if (cost?.data) setCosting(cost.data as CostingData);
+        } catch {
+          toast.error("Quote not found");
+          navigate("/quotes");
+        }
       }
-    });
-    if (existing.event.location) {
-      setTravelDestination(existing.event.location);
-    }
-  }, [quoteId, navigate]);
-
-  useEffect(() => {
-    const idToUse = quoteId || originalQuote?.id || draftQuoteId;
-    if (!idToUse) return;
-    const existing = getCostingByQuoteId(idToUse);
-    if (existing) {
-      setCosting(existing);
-    }
-  }, [quoteId, draftQuoteId, originalQuote]);
+    };
+    load();
+  }, [enquiryId, quoteId, navigate, petrolMpg, petrolPrice]);
 
   const handleTravelEstimate = async () => {
     if (!travelDestination.trim()) {
@@ -408,30 +414,21 @@ export default function NewQuote() {
       setFormError("Quote total must be greater than zero.");
       return;
     }
-    const quotes = getQuotes();
-
-    if (isEdit) {
-      const idx = quotes.findIndex((q) => q.id === quote.id);
-      if (idx !== -1) {
-        quotes[idx] = quote;
+    try {
+      let saved: Quote;
+      if (isEdit) {
+        saved = await updateQuote(quote.id, quote);
       } else {
-        quotes.push(quote);
+        saved = await createQuote(quote);
       }
-    } else {
-      quotes.push(quote);
+      if (costing) {
+        await saveCosting(saved.id, costing);
+      }
+      toast.success(isEdit ? "Quote updated" : "Quote saved successfully");
+      navigate("/quotes");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save quote");
     }
-    saveQuotes(quotes);
-
-    if (enquiryId) {
-      const enquiries = getEnquiries();
-      const updated = enquiries.map(e =>
-        e.id === enquiryId ? { ...e, status: 'Quoted' as const } : e
-      );
-      saveEnquiries(updated);
-    }
-
-    toast.success(isEdit ? "Quote updated" : "Quote saved successfully");
-    navigate("/quotes");
   };
 
   const downloadBlob = (blob: Blob, filename: string) => {
@@ -461,7 +458,7 @@ export default function NewQuote() {
   const handleModalCostingDownload = async () => {
     try {
       const { quote } = calculateTotals();
-      const costingToUse = costing || (quote.id ? getCostingByQuoteId(quote.id) : null);
+      const costingToUse = costing;
       if (!costingToUse) {
         toast.error("Add costing details in the Costing tab first.");
         return;

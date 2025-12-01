@@ -62,8 +62,9 @@ export const getEnquiries = (): Enquiry[] => getFromStorage(STORAGE_KEYS.ENQUIRI
 export const saveEnquiries = (enquiries: Enquiry[]) => setToStorage(STORAGE_KEYS.ENQUIRIES, enquiries);
 
 // Quotes
-export const getQuotes = (): Quote[] => getFromStorage(STORAGE_KEYS.QUOTES, []);
-export const saveQuotes = (quotes: Quote[]) => setToStorage(STORAGE_KEYS.QUOTES, quotes);
+// Quotes/bookings/costings now live in the API/D1. Keep these no-ops to avoid usage.
+export const getQuotes = (): Quote[] => [];
+export const saveQuotes = (_quotes: Quote[]) => undefined;
 
 // Bookings
 const normalizeBooking = (booking: Booking): Booking => ({
@@ -74,47 +75,16 @@ const normalizeBooking = (booking: Booking): Booking => ({
   createdAt: booking.createdAt ?? new Date().toISOString(),
 });
 
-export const getBookings = (): Booking[] => getFromStorage(STORAGE_KEYS.BOOKINGS, []).map(normalizeBooking);
-export const saveBookings = (bookings: Booking[]) => setToStorage(STORAGE_KEYS.BOOKINGS, bookings);
-export const upsertBookingFromQuote = (quote: Quote): Booking => {
-  const all = getBookings();
-  const existing = all.find((b) => b.quoteId === quote.id);
-  const base: Booking = existing
-    ? { ...existing }
-    : {
-        id: quote.id,
-        quoteId: quote.id,
-        customer: quote.customer,
-        event: quote.event,
-        total: quote.totals.gross,
-        status: "Confirmed",
-        paymentStatus: "Pending",
-        depositPaid: 0,
-        createdAt: new Date().toISOString(),
-      };
-
-  const updated: Booking = {
-    ...base,
-    customer: quote.customer,
-    event: quote.event,
-    total: quote.totals.gross,
-  };
-
-  const idx = all.findIndex((b) => b.quoteId === quote.id);
-  if (idx >= 0) {
-    all[idx] = updated;
-  } else {
-    all.unshift(updated);
-  }
-  saveBookings(all);
-  return updated;
+export const getBookings = (): Booking[] => [];
+export const saveBookings = (_bookings: Booking[]) => undefined;
+export const upsertBookingFromQuote = (_quote: Quote): Booking => {
+  throw new Error("upsertBookingFromQuote is now handled via API/D1");
 };
 
 // Costing
-export const getCostingData = (): CostingData[] => getFromStorage(STORAGE_KEYS.COSTING, []);
-export const saveCostingData = (costing: CostingData[]) => setToStorage(STORAGE_KEYS.COSTING, costing);
-export const getCostingByQuoteId = (quoteId: string): CostingData | undefined =>
-  getCostingData().find((c) => c.quoteId === quoteId);
+export const getCostingData = (): CostingData[] => [];
+export const saveCostingData = (_costing: CostingData[]) => undefined;
+export const getCostingByQuoteId = (_quoteId: string): CostingData | undefined => undefined;
 
 // Settings
 export const getSettings = (): Settings => {
