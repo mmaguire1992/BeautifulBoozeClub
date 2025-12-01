@@ -1,0 +1,14 @@
+name = "booze-buddy-builder"
+compatibility_date = "2024-12-11"
+pages_build_output_dir = "./dist"
+
+[vars]
+AUTH_SECRET = "change-me"
+COOKIE_SECURE = "true"
+DEFAULT_FUEL_PRICE_PER_LITRE = "1.75"
+# GOOGLE_MAPS_API_KEY = "optional-if-you-need-travel-estimates"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "booze-db"
+database_id = "YOUR_D1_DATABASE_ID"

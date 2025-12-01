@@ -1,7 +1,7 @@
 import { CostingData, DrinkBreakdownItem, Quote, QuoteLine } from "@/types";
 import { calculateLineTotal } from "./calculations";
 
-export type InvoiceLine = { description: string; amount: number };
+export type InvoiceLine = { description: string; amount: number; showAmount?: boolean };
 
 export const INTERNAL_LINE_KINDS: QuoteLine["kind"][] = ["staffWork", "staffTravel", "petrol"];
 
@@ -16,18 +16,25 @@ const summarizeSelections = (items: DrinkBreakdownItem[]) =>
     .map((item) => `${item.qty} ${item.name}`)
     .join(", ");
 
-export const describeQuoteLine = (line: QuoteLine): string => {
+export const describeQuoteLine = (line: QuoteLine, options?: { customerFacing?: boolean }): string => {
+  const customerFacing = options?.customerFacing ?? false;
   switch (line.kind) {
     case "package":
-      return `${line.name} package × ${line.qty}`;
+      return `${line.name} package${customerFacing && line.qty === 1 ? "" : ` × ${line.qty}`}`;
     case "class":
       return `${line.tier} cocktail class · ${line.guests} guests`;
     case "boozyBrunch":
       return `Boozy brunch · ${line.guests} guests`;
     case "guestFee":
-      return `Custom package · ${line.guests} cocktails @ €${line.pricePerGuest}/cocktail`;
+      return customerFacing
+        ? `Custom package · ${line.guests} cocktails`
+        : `Custom package · ${line.guests} cocktails @ €${line.pricePerGuest}/cocktail`;
     case "custom":
-      return `${line.description} × ${line.qty}`;
+      return customerFacing
+        ? line.qty > 1
+          ? `${line.description} × ${line.qty}`
+          : line.description
+        : `${line.description} × ${line.qty}`;
     case "staffWork":
       return `Staff work · ${line.hours} hrs @ €${line.hourlyRate}/h`;
     case "staffTravel":
@@ -50,6 +57,7 @@ export const buildInvoiceLines = (
   options?: { costing?: CostingData; includeInternal?: boolean }
 ): InvoiceLine[] => {
   const includeInternal = options?.includeInternal ?? false;
+  const customerFacing = !includeInternal;
   const costing = options?.costing;
   const hasBundleLine = quote.lines.some((line) =>
     ["package", "guestFee", "class", "boozyBrunch"].includes(line.kind)
@@ -57,10 +65,14 @@ export const buildInvoiceLines = (
 
   const baseLines = quote.lines
     .filter((line) => includeInternal || !INTERNAL_LINE_KINDS.includes(line.kind))
-    .map((line) => ({
-      description: describeQuoteLine(line),
-      amount: calculateLineTotal(line),
-    }))
+    .map((line) => {
+      const showAmount = includeInternal;
+      return {
+        description: describeQuoteLine(line, { customerFacing }),
+        amount: calculateLineTotal(line),
+        ...(showAmount ? {} : { showAmount }),
+      };
+    })
     .filter((line) => line.amount > 0);
 
   if (!costing) return baseLines;
@@ -71,8 +83,11 @@ export const buildInvoiceLines = (
   const beerSelection = summarizeSelections(costing.beers);
   if (beerRevenue > 0) {
     customerLines.push({
-      description: `Beers${beerQty ? ` (${beerQty} bottles${beerSelection ? `: ${beerSelection}` : ""})` : ""}`,
+      description: includeInternal
+        ? `Beers${beerQty ? ` (${beerQty} bottles${beerSelection ? `: ${beerSelection}` : ""})` : ""}`
+        : "Beers package",
       amount: beerRevenue,
+      ...(includeInternal ? {} : { showAmount: false }),
     });
   }
 
@@ -82,8 +97,11 @@ export const buildInvoiceLines = (
   const shouldChargeCocktails = includeInternal || !hasBundleLine;
   if (cocktailRevenue > 0 && shouldChargeCocktails) {
     customerLines.push({
-      description: `Cocktails${cocktailQty ? ` (${cocktailQty}${cocktailSelection ? `: ${cocktailSelection}` : ""})` : ""}`,
+      description: includeInternal
+        ? `Cocktails${cocktailQty ? ` (${cocktailQty}${cocktailSelection ? `: ${cocktailSelection}` : ""})` : ""}`
+        : "Cocktail package",
       amount: cocktailRevenue,
+      ...(includeInternal ? {} : { showAmount: false }),
     });
   }
 
@@ -93,8 +111,11 @@ export const buildInvoiceLines = (
   const wineSelection = summarizeSelections(wineItems);
   if (wineRevenue > 0) {
     customerLines.push({
-      description: `Wine by the glass${wineQty ? ` (${wineQty} glasses${wineSelection ? `: ${wineSelection}` : ""})` : ""}`,
+      description: includeInternal
+        ? `Wine by the glass${wineQty ? ` (${wineQty} glasses${wineSelection ? `: ${wineSelection}` : ""})` : ""}`
+        : "Wine package",
       amount: wineRevenue,
+      ...(includeInternal ? {} : { showAmount: false }),
     });
   }
 
@@ -102,7 +123,7 @@ export const buildInvoiceLines = (
   const detailDescription = (label: string, selection: string) =>
     selection ? `${label} selection: ${selection}` : `${label} selection`;
 
-  if (cocktailSelection) {
+  if (includeInternal && cocktailSelection) {
     detailLines.push({ description: detailDescription("Cocktails", cocktailSelection), amount: 0 });
   }
 

@@ -68,12 +68,36 @@ npm run dev
 npm run dev
 # frontend: http://localhost:5173 (Vite)
 ```
-If your backend is not on `http://localhost:4000`, set `VITE_BACKEND_URL` in a root `.env` file.
+If your backend is not on `http://localhost:4000`, set `VITE_BACKEND_URL` (or `VITE_API_BASE_URL`) in a root `.env` file. When deployed to Cloudflare Pages, the frontend defaults to calling the same origin, so these can stay unset.
 
 ## Optional environment
 
 - `VITE_GOOGLE_CALENDAR_EMBED_URL` — override the default calendar embed on the Google Calendar page.
 - `GOOGLE_MAPS_API_KEY` (backend) — required for `/api/travel-estimate`; other routes work without it.
+
+## Deploy on Cloudflare Pages + D1 (free)
+
+This repo now ships with a Cloudflare Pages Function (`functions/api/[[route]].ts`) that replaces the Express server and uses D1 for persistence.
+
+1) Create a Cloudflare Pages project pointing at this repo. Build command: `npm run build`. Output dir: `dist`.
+2) Add a D1 database and bind it to Functions as `DB` (Pages → Settings → Functions → D1 bindings).
+3) Apply the schema: use the dashboard query console or `wrangler d1 execute <db> --file d1/schema.sql`.
+4) Functions secrets (Pages → Settings → Environment Variables):
+   - `AUTH_SECRET` (required)
+   - `COOKIE_SECURE=true`
+   - `GOOGLE_MAPS_API_KEY` (required for travel estimates)
+   - `DEFAULT_FUEL_PRICE_PER_LITRE` (optional; default 1.75)
+5) Frontend env (Pages → Build settings → Environment variables):
+   - `VITE_GOOGLE_CALENDAR_EMBED_URL` (optional)
+   - `VITE_API_BASE_URL` / `VITE_BACKEND_URL` can be left unset; the frontend falls back to the deployed origin.
+
+Local dev against the Pages Function:
+```
+cp wrangler.example.toml wrangler.toml   # fill in your D1 database id/name
+npm install
+npx wrangler d1 execute <db-name> --file d1/schema.sql
+npx wrangler pages dev --compatibility-date=2024-12-11
+```
 
 **Edit a file directly in GitHub**
 

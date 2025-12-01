@@ -301,19 +301,26 @@ export default function QuoteDetails() {
             <CardContent>
               {invoice && invoice.lines.length > 0 ? (
                 <Table>
-                  <TableHeader>
-                    <TableRow>
+                  <TableHeader className={invoice.lines.every((line) => line.showAmount === false) ? "[&_tr]:border-0" : undefined}>
+                    <TableRow className={invoice.lines.every((line) => line.showAmount === false) ? "border-b-0" : undefined}>
                       <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
+                      {invoice.lines.some((line) => line.showAmount !== false) && (
+                        <TableHead className="text-right">Amount</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
+                  <TableBody className={invoice.lines.every((line) => line.showAmount === false) ? "[&_tr]:border-0" : undefined}>
                     {invoice.lines.map((line, index) => (
-                      <TableRow key={index}>
+                      <TableRow
+                        key={index}
+                        className={invoice.lines.every((l) => l.showAmount === false) ? "border-b-0" : undefined}
+                      >
                         <TableCell>{line.description}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(line.amount)}
-                        </TableCell>
+                        {invoice.lines.some((l) => l.showAmount !== false) && (
+                          <TableCell className="text-right font-medium">
+                            {line.showAmount === false ? "" : formatCurrency(line.amount)}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>

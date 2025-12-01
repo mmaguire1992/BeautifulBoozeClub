@@ -1,5 +1,6 @@
 const API_BASE =
-  import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") || "http://localhost:4000";
+  import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
+  (typeof window !== "undefined" ? window.location.origin : "http://localhost:4000");
 
 export type TravelEstimate = {
   provider: string;

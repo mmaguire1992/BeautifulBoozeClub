@@ -177,23 +177,44 @@ const buildTotalsBlock = (
   margin: [0, 8, 0, 0],
 });
 
-const buildLinesTable = (lines: InvoiceLine[]): Content => ({
-  table: {
-    headerRows: 1,
-    widths: ["*", "auto"],
-    body: [
-      [
-        { text: "Description", style: "tableHeader" },
-        { text: "Amount (€)", style: "tableHeader", alignment: "right" },
-      ],
-      ...lines.map((line) => [
-        { text: line.description, style: "value" },
-        { text: formatCurrency(line.amount), alignment: "right", style: "valueBold" },
-      ]),
-    ],
-  },
-  layout: "lightHorizontalLines",
-});
+const buildLinesTable = (lines: InvoiceLine[]): Content => {
+  const hasVisibleAmounts = lines.some((line) => line.showAmount !== false);
+  const headerRow = [{ text: "Description", style: "tableHeader" }];
+  if (hasVisibleAmounts) {
+    headerRow.push({ text: "Amount (€)", style: "tableHeader", alignment: "right" });
+  }
+
+  const body = [
+    headerRow,
+    ...lines.map((line) => {
+      const row: any[] = [{ text: line.description, style: "value" }];
+      if (hasVisibleAmounts) {
+        row.push({
+          text: line.showAmount === false ? "" : formatCurrency(line.amount),
+          alignment: "right",
+          style: "valueBold",
+        });
+      }
+      return row;
+    }),
+  ];
+
+  return {
+    table: {
+      headerRows: 1,
+      widths: hasVisibleAmounts ? ["*", "auto"] : ["*"],
+      body,
+    },
+    layout: hasVisibleAmounts
+      ? "lightHorizontalLines"
+      : {
+          hLineWidth: () => 0,
+          vLineWidth: () => 0,
+          hLineColor: () => "transparent",
+          vLineColor: () => "transparent",
+        },
+  };
+};
 
 const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: number): Content => {
   if (!costing) {
