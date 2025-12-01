@@ -8,10 +8,13 @@ const resolveApiBase = () => {
     undefined;
   if (!raw) return fallback;
   // Fix common typos like https//example.com
-  const normalized = raw.replace("https//", "https://").replace("http//", "http://").replace(/\/$/, "");
-  // Extract first valid http(s)://host to avoid double-host values
-  const match = normalized.match(/https?:\/\/[^/]+/);
-  if (match) return match[0];
+  const normalized = raw.replace("https//", "https://").replace("http//", "http://").trim();
+  // If multiple protocols are present, take the first host segment only
+  const tokens = normalized.split(/https?:\/\//).filter(Boolean);
+  if (tokens.length > 0) {
+    const host = tokens[0].split("/")[0];
+    if (host) return `https://${host.replace(/\/+$/, "")}`;
+  }
   try {
     return new URL(normalized).origin;
   } catch {

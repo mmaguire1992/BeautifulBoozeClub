@@ -19,9 +19,12 @@ const resolveApiBase = () => {
     import.meta.env.VITE_BACKEND_URL ||
     undefined;
   if (!raw) return fallback;
-  const normalized = raw.replace("https//", "https://").replace("http//", "http://").replace(/\/$/, "");
-  const match = normalized.match(/https?:\/\/[^/]+/);
-  if (match) return match[0];
+  const normalized = raw.replace("https//", "https://").replace("http//", "http://").trim();
+  const tokens = normalized.split(/https?:\/\//).filter(Boolean);
+  if (tokens.length > 0) {
+    const host = tokens[0].split("/")[0];
+    if (host) return `https://${host.replace(/\/+$/, "")}`;
+  }
   try {
     return new URL(normalized).origin;
   } catch {
