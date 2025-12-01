@@ -1,28 +1,10 @@
 import type { Enquiry, Quote, Booking, CostingData } from "@/types";
 
-const resolveApiBase = () => {
-  const fallback = typeof window !== "undefined" ? window.location.origin : "http://localhost:4000";
-  const raw =
-    import.meta.env.VITE_BACKEND_URL ||
-    import.meta.env.VITE_API_BASE_URL ||
-    undefined;
-  if (!raw) return fallback;
-  // Fix common typos like https//example.com
-  const normalized = raw.replace("https//", "https://").replace("http//", "http://").trim();
-  // If multiple protocols are present, take the first host segment only
-  const tokens = normalized.split(/https?:\/\//).filter(Boolean);
-  if (tokens.length > 0) {
-    const host = tokens[0].split("/")[0];
-    if (host) return `https://${host.replace(/\/+$/, "")}`;
-  }
-  try {
-    return new URL(normalized).origin;
-  } catch {
-    return fallback;
-  }
-};
-
-const API_BASE = resolveApiBase();
+// Force same-origin in the browser to avoid malformed env URLs; fall back to localhost in SSR.
+const API_BASE =
+  typeof window !== "undefined"
+    ? window.location.origin
+    : (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:4000");
 
 const apiFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const res = await fetch(`${API_BASE}${path}`, {

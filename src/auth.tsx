@@ -12,27 +12,10 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const resolveApiBase = () => {
-  const fallback = typeof window !== "undefined" ? window.location.origin : "http://localhost:4000";
-  const raw =
-    import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VITE_BACKEND_URL ||
-    undefined;
-  if (!raw) return fallback;
-  const normalized = raw.replace("https//", "https://").replace("http//", "http://").trim();
-  const tokens = normalized.split(/https?:\/\//).filter(Boolean);
-  if (tokens.length > 0) {
-    const host = tokens[0].split("/")[0];
-    if (host) return `https://${host.replace(/\/+$/, "")}`;
-  }
-  try {
-    return new URL(normalized).origin;
-  } catch {
-    return fallback;
-  }
-};
-
-const API_BASE = resolveApiBase();
+const API_BASE =
+  typeof window !== "undefined"
+    ? window.location.origin
+    : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || "http://localhost:4000");
 
 const fetchJson = async (path: string, options: RequestInit = {}) => {
   const res = await fetch(`${API_BASE}${path}`, {
