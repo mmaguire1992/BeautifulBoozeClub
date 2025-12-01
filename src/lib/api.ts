@@ -1,8 +1,25 @@
 import type { Enquiry, Quote, Booking, CostingData } from "@/types";
 
-const API_BASE =
-  import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
-  (typeof window !== "undefined" ? window.location.origin : "http://localhost:4000");
+const resolveApiBase = () => {
+  const fallback = typeof window !== "undefined" ? window.location.origin : "http://localhost:4000";
+  const raw =
+    import.meta.env.VITE_BACKEND_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    undefined;
+  if (!raw) return fallback;
+  // Fix common typos like https//example.com
+  const normalized = raw.replace("https//", "https://").replace("http//", "http://").replace(/\/$/, "");
+  // Extract first valid http(s)://host to avoid double-host values
+  const match = normalized.match(/https?:\/\/[^/]+/);
+  if (match) return match[0];
+  try {
+    return new URL(normalized).origin;
+  } catch {
+    return fallback;
+  }
+};
+
+const API_BASE = resolveApiBase();
 
 const apiFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const res = await fetch(`${API_BASE}${path}`, {
