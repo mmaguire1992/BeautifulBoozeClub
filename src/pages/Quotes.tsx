@@ -144,10 +144,9 @@ export default function Quotes() {
                 </TableRow>
               ) : (
                 quotes.map((quote) => {
-                  const costing = getCostingByQuoteId(quote.id);
                   const { totals } = calculateInvoiceTotals(quote, {
                     includeInternal: false,
-                    costing: costing ?? undefined,
+                    costing: undefined,
                   });
                   return (
                     <TableRow key={quote.id}>

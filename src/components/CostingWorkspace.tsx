@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { calculateCosting, calculateLineTotal } from "@/lib/calculations";
-import { getCostingByQuoteId, getCostingData, getSettings, saveCostingData } from "@/lib/storage";
+import { getSettings } from "@/lib/storage";
 import { CostingData, DrinkBreakdownItem, Quote } from "@/types";
 import { generateId } from "@/lib/id";
+import { fetchCosting, saveCosting as saveCostingApi } from "@/lib/api";
 
 const cloneCosting = (data: CostingData): CostingData => JSON.parse(JSON.stringify(data));
 const round2 = (n: number) => Math.round((Number.isFinite(n) ? n : 0) * 100) / 100;
@@ -248,27 +249,28 @@ const extrasSignature = (items: DrinkBreakdownItem[]) =>
     }))
   );
 
-const persistCosting = (data: CostingData) => {
-  const existing = getCostingData();
-  const idx = existing.findIndex((c) => c.quoteId === data.quoteId);
-  if (idx >= 0) {
-    existing[idx] = data;
-  } else {
-    existing.push(data);
-  }
-  saveCostingData(existing);
-};
-
 export default function CostingWorkspace({ quote, onChange }: CostingWorkspaceProps) {
   const [costing, setCosting] = useState<CostingData | null>(null);
   const [selectedCocktailId, setSelectedCocktailId] = useState<string>(cocktailOptions[0]?.id || "");
   const [selectedCocktailQty, setSelectedCocktailQty] = useState<number>(1);
 
   useEffect(() => {
-    const existing = getCostingByQuoteId(quote.id);
-    const base = existing ? normalizeCosting(existing) : normalizeCosting(createDefaultCosting(quote));
-    const withOverheads = applyQuoteOverheads(base, quote);
-    setCosting(applyCostingDefaults(withOverheads));
+    const load = async () => {
+      const base = normalizeCosting(createDefaultCosting(quote));
+      let remote: CostingData | null = null;
+      try {
+        if (quote.id) {
+          const res = await fetchCosting(quote.id);
+          if (res?.data) remote = normalizeCosting(res.data as CostingData);
+        }
+      } catch {
+        // ignore
+      }
+      const chosen = remote ?? base;
+      const withOverheads = applyQuoteOverheads(chosen, quote);
+      setCosting(applyCostingDefaults(withOverheads));
+    };
+    load();
   }, [quote.id]);
 
   const quoteOverheadsKey = useMemo(
@@ -295,9 +297,17 @@ export default function CostingWorkspace({ quote, onChange }: CostingWorkspacePr
 
   useEffect(() => {
     if (!costing) return;
-    persistCosting(costing);
+    const persist = async () => {
+      if (!quote.id) return;
+      try {
+        await saveCostingApi(quote.id, costing);
+      } catch {
+        // ignore
+      }
+    };
+    persist();
     onChange?.(costing);
-  }, [costing, onChange]);
+  }, [costing, onChange, quote.id]);
 
   useEffect(() => {
     if (!costing) return;
