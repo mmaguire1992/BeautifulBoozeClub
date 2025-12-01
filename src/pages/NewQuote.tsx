@@ -390,7 +390,7 @@ export default function NewQuote() {
 
     const { totals, lines: invoiceLines } = calculateInvoiceTotals(quote, {
       includeInternal: false,
-      costing: costing || getCostingByQuoteId(quoteIdToUse) || undefined,
+      costing: costing || undefined,
     });
 
     quote.totals = totals;
@@ -398,7 +398,7 @@ export default function NewQuote() {
     return { quote, totals, invoiceLines };
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setFormError(null);
     if (!customer.name.trim() || !event.type.trim() || !event.location.trim()) {
       setFormError("Name, event type, and location are required.");
