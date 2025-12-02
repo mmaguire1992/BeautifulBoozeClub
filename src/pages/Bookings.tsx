@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calendar, CreditCard, CheckCircle2, Trash2, Search } from "lucide-react";
+import { Calendar, CreditCard, CheckCircle2, Trash2, Search, Archive } from "lucide-react";
 import { Booking } from "@/types";
 import { format } from "date-fns";
 import { fetchBookings, updateBooking, deleteBooking } from "@/lib/api";
@@ -32,16 +32,18 @@ export default function Bookings() {
     load();
   }, []);
 
-  const filteredBookings = bookings.filter((booking) => {
-    if (!searchTerm.trim()) return true;
-    const term = searchTerm.toLowerCase();
-    return (
-      booking.customer.name.toLowerCase().includes(term) ||
-      booking.customer.email.toLowerCase().includes(term) ||
-      booking.event.type.toLowerCase().includes(term) ||
-      booking.event.location.toLowerCase().includes(term)
-    );
-  });
+  const filteredBookings = bookings
+    .filter((booking) => !booking.archived)
+    .filter((booking) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        booking.customer.name.toLowerCase().includes(term) ||
+        booking.customer.email.toLowerCase().includes(term) ||
+        booking.event.type.toLowerCase().includes(term) ||
+        booking.event.location.toLowerCase().includes(term)
+      );
+    });
 
   const updateBookingPayment = async (
     bookingId: string,
@@ -66,6 +68,12 @@ export default function Bookings() {
 
   const handlePaidInFull = (booking: Booking) => {
     updateBookingPayment(booking.id, "PaidInFull", booking.total);
+  };
+
+  const handleArchive = (booking: Booking) => {
+    updateBooking(booking.id, { archived: true })
+      .then((updated) => setBookings((prev) => prev.map((b) => (b.id === booking.id ? updated : b))))
+      .catch(() => {});
   };
 
   const handleDelete = async (bookingId: string) => {
@@ -174,6 +182,9 @@ export default function Bookings() {
                         </Button>
                         <Button variant="default" size="sm" onClick={() => handlePaidInFull(booking)}>
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Paid
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => handleArchive(booking)}>
+                          <Archive className="h-4 w-4 mr-1" /> Archive
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(booking.id)} title="Remove booking">
                           <Trash2 className="h-4 w-4 text-destructive" />

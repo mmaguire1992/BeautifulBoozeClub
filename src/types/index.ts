@@ -52,6 +52,7 @@ export type Booking = {
   depositPaid?: number;
   paymentStatus: 'Pending' | 'DepositPaid' | 'PaidInFull';
   status: 'Confirmed' | 'Completed' | 'Cancelled';
+  archived?: boolean;
   createdAt: string;
 };
 

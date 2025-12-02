@@ -33,6 +33,7 @@ type BookingRow = {
   depositPaid: number;
   paymentStatus: string;
   status: string;
+  archived: number | null;
   createdAt: string;
 };
 
@@ -166,6 +167,7 @@ const toBooking = (row: BookingRow) => ({
   depositPaid: row.depositPaid ?? 0,
   paymentStatus: row.paymentStatus as "Pending" | "DepositPaid" | "PaidInFull",
   status: row.status as "Confirmed" | "Completed" | "Cancelled",
+  archived: Boolean(row.archived),
   createdAt: row.createdAt,
 });
 
@@ -517,8 +519,8 @@ app.post("/api/quotes/:id/accept", requireAuth, async (c) => {
   const bookingId = crypto.randomUUID();
   const quote = toQuote(quoteRow);
   await c.env.DB.prepare(
-    `INSERT INTO Booking (id, quoteId, customer, event, total, depositPaid, paymentStatus, status, createdAt)
-     VALUES (?, ?, ?, ?, ?, 0, 'Pending', 'Confirmed', ?)`
+    `INSERT INTO Booking (id, quoteId, customer, event, total, depositPaid, paymentStatus, status, archived, createdAt)
+     VALUES (?, ?, ?, ?, ?, 0, 'Pending', 'Confirmed', 0, ?)`
   )
     .bind(
       bookingId,
@@ -531,7 +533,7 @@ app.post("/api/quotes/:id/accept", requireAuth, async (c) => {
     .run();
   const updatedQuote = { ...quote, status: "Accepted", updatedAt: now };
   const bookingRow = await c.env.DB.prepare(
-    "SELECT id, quoteId, customer, event, total, depositPaid, paymentStatus, status, createdAt FROM Booking WHERE id = ?"
+    "SELECT id, quoteId, customer, event, total, depositPaid, paymentStatus, status, archived, createdAt FROM Booking WHERE id = ?"
   )
     .bind(bookingId)
     .first<BookingRow>();
@@ -566,26 +568,27 @@ app.put("/api/quotes/:id/costing", requireAuth, async (c) => {
 // Bookings
 app.get("/api/bookings", requireAuth, async (c) => {
   const res = await c.env.DB.prepare(
-    "SELECT id, quoteId, customer, event, total, depositPaid, paymentStatus, status, createdAt FROM Booking ORDER BY datetime(createdAt) DESC"
+    "SELECT id, quoteId, customer, event, total, depositPaid, paymentStatus, status, archived, createdAt FROM Booking ORDER BY datetime(createdAt) DESC"
   ).all<BookingRow>();
   return c.json((res.results || []).map(toBooking));
 });
 
 app.patch("/api/bookings/:id", requireAuth, async (c) => {
   const id = c.req.param("id");
-  const { paymentStatus, depositPaid, status } = (await c.req.json().catch(() => ({}))) as {
+  const { paymentStatus, depositPaid, status, archived } = (await c.req.json().catch(() => ({}))) as {
     paymentStatus?: string;
     depositPaid?: number;
     status?: string;
+    archived?: boolean;
   };
   const res = await c.env.DB.prepare(
-    "UPDATE Booking SET paymentStatus = coalesce(?, paymentStatus), depositPaid = coalesce(?, depositPaid), status = coalesce(?, status) WHERE id = ?"
+    "UPDATE Booking SET paymentStatus = coalesce(?, paymentStatus), depositPaid = coalesce(?, depositPaid), status = coalesce(?, status), archived = coalesce(?, archived) WHERE id = ?"
   )
-    .bind(paymentStatus || null, depositPaid ?? null, status || null, id)
+    .bind(paymentStatus || null, depositPaid ?? null, status || null, archived === undefined ? null : archived ? 1 : 0, id)
     .run();
   if (res.meta.changes === 0) return c.json({ error: "Not found" }, 404);
   const row = await c.env.DB.prepare(
-    "SELECT id, quoteId, customer, event, total, depositPaid, paymentStatus, status, createdAt FROM Booking WHERE id = ?"
+    "SELECT id, quoteId, customer, event, total, depositPaid, paymentStatus, status, archived, createdAt FROM Booking WHERE id = ?"
   )
     .bind(id)
     .first<BookingRow>();

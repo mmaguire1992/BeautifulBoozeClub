@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/table";
 import { Calendar, Search, Trash2 } from "lucide-react";
 import { Booking } from "@/types";
-import { addDays, format, isAfter } from "date-fns";
-import { fetchBookings, deleteBooking } from "@/lib/api";
+import { format } from "date-fns";
+import { fetchBookings, deleteBooking, updateBooking } from "@/lib/api";
 
 export default function Archive() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -34,11 +34,7 @@ export default function Archive() {
 
   const archivedBookings = useMemo(() => {
     return bookings
-      .filter((booking) => {
-        const eventDate = new Date(booking.event.date);
-        const archiveCutoff = addDays(eventDate, 1);
-        return isAfter(new Date(), archiveCutoff);
-      })
+      .filter((booking) => booking.archived)
       .filter((booking) => {
         if (!searchTerm.trim()) return true;
         const term = searchTerm.toLowerCase();
@@ -80,13 +76,22 @@ export default function Archive() {
     }
   };
 
+  const handleUnarchive = async (bookingId: string) => {
+    try {
+      const updated = await updateBooking(bookingId, { archived: false });
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? updated : b)));
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Calendar className="h-8 w-8 text-primary" />
         <div>
           <h1 className="text-3xl font-bold text-foreground">Archived Bookings</h1>
-          <p className="text-muted-foreground mt-1">Events move here the day after they end</p>
+          <p className="text-muted-foreground mt-1">Manually archived bookings live here</p>
         </div>
       </div>
 
@@ -150,6 +155,9 @@ export default function Archive() {
                           title="Remove booking"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => handleUnarchive(booking.id)}>
+                          Unarchive
                         </Button>
                       </div>
                     </TableCell>

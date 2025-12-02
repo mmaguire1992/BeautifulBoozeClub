@@ -36,11 +36,12 @@ export default function Dashboard() {
   const newEnquiries = enquiries.filter(e => e.status === 'New').length;
   const awaitingAction = quotes.filter(q => q.status === 'Draft' || q.status === 'Sent').length;
   const acceptedQuotes = quotes.filter(q => q.status === 'Accepted').length;
-  const upcomingBookings = bookings.filter(b => {
+  const activeBookings = bookings.filter((b) => !b.archived);
+  const upcomingBookings = activeBookings.filter(b => {
     const bookingDate = new Date(b.event.date);
     return isToday(bookingDate) || isTomorrow(bookingDate);
   });
-  const outstandingByBooking = bookings
+  const outstandingByBooking = activeBookings
     .filter((booking) => booking.paymentStatus !== "PaidInFull")
     .map((booking) => {
       const paid = booking.depositPaid ?? 0;

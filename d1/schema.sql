@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS Booking (
   depositPaid REAL DEFAULT 0,
   paymentStatus TEXT DEFAULT 'Pending',
   status TEXT DEFAULT 'Confirmed',
+  archived INTEGER DEFAULT 0,
   createdAt TEXT DEFAULT (datetime('now'))
 );
 
