@@ -109,63 +109,100 @@ export default function Archive() {
         <CardHeader>
           <CardTitle>Archived</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Booking #</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Event Type</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Guests</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {archivedBookings.length === 0 ? (
+        <CardContent>
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-muted-foreground">
-                    No archived bookings yet
-                  </TableCell>
+                  <TableHead>Booking #</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Event Type</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Date & Time</TableHead>
+                  <TableHead>Guests</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : (
-                archivedBookings.map((booking) => (
-                  <TableRow key={booking.id} className="bg-muted/50">
-                    <TableCell className="font-medium">#{booking.id.slice(0, 8)}</TableCell>
-                    <TableCell>{booking.customer.name}</TableCell>
-                    <TableCell>{booking.event.type}</TableCell>
-                    <TableCell>{booking.event.location}</TableCell>
-                    <TableCell>
-                      {format(new Date(booking.event.date), "MMM dd, yyyy")} at {booking.event.time}
-                    </TableCell>
-                    <TableCell>{booking.event.guests}</TableCell>
-                    <TableCell className="font-semibold">€{booking.total.toFixed(2)}</TableCell>
-                    <TableCell>{getStatusBadge(booking.status)}</TableCell>
-                    <TableCell>{getPaymentBadge(booking.paymentStatus)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(booking.id)}
-                          title="Remove booking"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                        <Button variant="secondary" size="sm" onClick={() => handleUnarchive(booking.id)}>
-                          Unarchive
-                        </Button>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {archivedBookings.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center text-muted-foreground">
+                      No archived bookings yet
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  archivedBookings.map((booking) => (
+                    <TableRow key={booking.id} className="bg-muted/50">
+                      <TableCell className="font-medium">#{booking.id.slice(0, 8)}</TableCell>
+                      <TableCell>{booking.customer.name}</TableCell>
+                      <TableCell>{booking.event.type}</TableCell>
+                      <TableCell>{booking.event.location}</TableCell>
+                      <TableCell>
+                        {format(new Date(booking.event.date), "MMM dd, yyyy")} at {booking.event.time}
+                      </TableCell>
+                      <TableCell>{booking.event.guests}</TableCell>
+                      <TableCell className="font-semibold">€{booking.total.toFixed(2)}</TableCell>
+                      <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                      <TableCell>{getPaymentBadge(booking.paymentStatus)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(booking.id)}
+                            title="Remove booking"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => handleUnarchive(booking.id)}>
+                            Unarchive
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="md:hidden space-y-3">
+            {archivedBookings.length === 0 ? (
+              <div className="text-center text-muted-foreground text-sm">No archived bookings yet</div>
+            ) : (
+              archivedBookings.map((booking) => (
+                <div key={booking.id} className="rounded-lg border p-3 space-y-2 bg-muted/50">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium text-sm">#{booking.id.slice(0, 8)} • {booking.customer.name}</div>
+                    <div className="space-x-2">
+                      {getStatusBadge(booking.status)}
+                      {getPaymentBadge(booking.paymentStatus)}
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {booking.event.type} • {booking.event.location}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {format(new Date(booking.event.date), "MMM dd, yyyy")} at {booking.event.time} • {booking.event.guests} guests
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">€{booking.total.toFixed(2)}</div>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" size="sm" onClick={() => handleUnarchive(booking.id)}>
+                        Unarchive
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(booking.id)}>
+                        <Trash2 className="h-4 w-4 mr-1 text-destructive" /> Delete
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

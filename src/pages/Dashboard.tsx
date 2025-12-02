@@ -282,6 +282,9 @@ export default function Dashboard() {
                   <Badge variant="secondary">
                     {booking.paymentStatus === "DepositPaid" ? "Deposit partial" : "Unpaid"}
                   </Badge>
+                  <div className="text-xs text-muted-foreground">
+                    Paid: {formatCurrency(booking.depositPaid ?? 0)}
+                  </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold">{formatCurrency(remaining)}</p>
                     <p className="text-xs text-muted-foreground">of {formatCurrency(booking.total)}</p>

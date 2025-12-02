@@ -110,86 +110,138 @@ export default function Quotes() {
         <CardHeader>
           <CardTitle>All Quotes</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Quote #</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Event Type</TableHead>
-                <TableHead>Event Date</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+        <CardContent>
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    Loading quotes...
-                  </TableCell>
+                  <TableHead>Quote #</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Event Type</TableHead>
+                  <TableHead>Event Date</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : error ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-destructive">
-                    {error}
-                  </TableCell>
-                </TableRow>
-              ) : quotes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    No quotes found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                quotes.map((quote) => {
-                  const { totals } = calculateInvoiceTotals(quote, {
-                    includeInternal: false,
-                    costing: undefined,
-                  });
-                  return (
-                    <TableRow key={quote.id}>
-                      <TableCell className="font-medium">#{quote.id.slice(0, 8)}</TableCell>
-                      <TableCell>{quote.customer.name}</TableCell>
-                      <TableCell>{quote.event.type}</TableCell>
-                      <TableCell>{format(new Date(quote.event.date), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell className="font-semibold">€{totals.gross.toFixed(2)}</TableCell>
-                      <TableCell>{getStatusBadge(quote.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2 text-muted-foreground">
-                          <Button variant="default" size="sm" onClick={() => handleAccept(quote)}>
-                            Accept
-                          </Button>
-                          <Link to={`/quotes/${quote.id}`}>
-                            <Button variant="ghost" size="icon" title="Preview">
-                              <Eye className="h-4 w-4" />
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      Loading quotes...
+                    </TableCell>
+                  </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-destructive">
+                      {error}
+                    </TableCell>
+                  </TableRow>
+                ) : quotes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      No quotes found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  quotes.map((quote) => {
+                    const { totals } = calculateInvoiceTotals(quote, {
+                      includeInternal: false,
+                      costing: undefined,
+                    });
+                    return (
+                      <TableRow key={quote.id}>
+                        <TableCell className="font-medium">#{quote.id.slice(0, 8)}</TableCell>
+                        <TableCell>{quote.customer.name}</TableCell>
+                        <TableCell>{quote.event.type}</TableCell>
+                        <TableCell>{format(new Date(quote.event.date), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell className="font-semibold">€{totals.gross.toFixed(2)}</TableCell>
+                        <TableCell>{getStatusBadge(quote.status)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2 text-muted-foreground">
+                            <Button variant="default" size="sm" onClick={() => handleAccept(quote)}>
+                              Accept
                             </Button>
-                          </Link>
-                          <Link to={`/quotes/${quote.id}/edit`}>
-                            <Button variant="ghost" size="icon" title="Edit">
-                              <Pencil className="h-4 w-4" />
+                            <Link to={`/quotes/${quote.id}`}>
+                              <Button variant="ghost" size="icon" title="Preview">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            <Link to={`/quotes/${quote.id}/edit`}>
+                              <Button variant="ghost" size="icon" title="Edit">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            <Button variant="ghost" size="icon" title="Download PDF" onClick={() => handleDownload(quote)}>
+                              <FileDown className="h-4 w-4" />
                             </Button>
-                          </Link>
-                          <Button variant="ghost" size="icon" title="Download PDF" onClick={() => handleDownload(quote)}>
-                            <FileDown className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Delete"
-                            onClick={() => handleDelete(quote.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete"
+                              onClick={() => handleDelete(quote.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="md:hidden space-y-3">
+            {loading ? (
+              <div className="text-center text-muted-foreground text-sm">Loading quotes...</div>
+            ) : error ? (
+              <div className="text-center text-destructive text-sm">{error}</div>
+            ) : quotes.length === 0 ? (
+              <div className="text-center text-muted-foreground text-sm">No quotes found</div>
+            ) : (
+              quotes.map((quote) => {
+                const { totals } = calculateInvoiceTotals(quote, {
+                  includeInternal: false,
+                  costing: undefined,
+                });
+                return (
+                  <div key={quote.id} className="rounded-lg border p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-sm">#{quote.id.slice(0, 8)} • {quote.customer.name}</div>
+                      {getStatusBadge(quote.status)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {quote.event.type} • {format(new Date(quote.event.date), 'MMM dd, yyyy')}
+                    </div>
+                    <div className="text-sm font-semibold">€{totals.gross.toFixed(2)}</div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="default" size="sm" onClick={() => handleAccept(quote)}>
+                        Accept
+                      </Button>
+                      <Link to={`/quotes/${quote.id}`}>
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-4 w-4 mr-1" /> View
+                        </Button>
+                      </Link>
+                      <Link to={`/quotes/${quote.id}/edit`}>
+                        <Button variant="outline" size="sm">
+                          <Pencil className="h-4 w-4 mr-1" /> Edit
+                        </Button>
+                      </Link>
+                      <Button variant="ghost" size="sm" onClick={() => handleDownload(quote)}>
+                        <FileDown className="h-4 w-4 mr-1" /> PDF
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(quote.id)}>
+                        <Trash2 className="h-4 w-4 mr-1 text-destructive" /> Delete
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

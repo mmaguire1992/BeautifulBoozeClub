@@ -83,82 +83,138 @@ export default function Enquiries() {
             />
           </div>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Event Type</TableHead>
-                <TableHead>Event Date</TableHead>
-                <TableHead>Guests</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+        <CardContent>
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
-                    Loading enquiries...
-                  </TableCell>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Service</TableHead>
+                  <TableHead>Event Type</TableHead>
+                  <TableHead>Event Date</TableHead>
+                  <TableHead>Guests</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : error ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-destructive">
-                    {error}
-                  </TableCell>
-                </TableRow>
-              ) : filteredEnquiries.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
-                    No enquiries found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredEnquiries.map((enquiry) => (
-                  <TableRow key={enquiry.id}>
-                    <TableCell>{format(new Date(enquiry.createdAt), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell className="font-medium">{enquiry.name}</TableCell>
-                    <TableCell>{enquiry.service}</TableCell>
-                    <TableCell>{enquiry.eventType}</TableCell>
-                    <TableCell>{format(new Date(enquiry.preferredDate), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell>{enquiry.guests}</TableCell>
-                    <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Link to={`/quotes/new?enquiryId=${enquiry.id}`}>
-                          <Button variant="ghost" size="icon">
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={async () => {
-                            if (!confirm("Delete this enquiry? This cannot be undone.")) return;
-                            try {
-                              await deleteEnquiry(enquiry.id);
-                              setEnquiries((prev) => prev.filter((e) => e.id !== enquiry.id));
-                              toast.success("Enquiry deleted");
-                            } catch (err: any) {
-                              toast.error(err?.message || "Failed to delete enquiry");
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      Loading enquiries...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-destructive">
+                      {error}
+                    </TableCell>
+                  </TableRow>
+                ) : filteredEnquiries.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      No enquiries found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredEnquiries.map((enquiry) => (
+                    <TableRow key={enquiry.id}>
+                      <TableCell>{format(new Date(enquiry.createdAt), 'MMM dd, yyyy')}</TableCell>
+                      <TableCell className="font-medium">{enquiry.name}</TableCell>
+                      <TableCell>{enquiry.service}</TableCell>
+                      <TableCell>{enquiry.eventType}</TableCell>
+                      <TableCell>{format(new Date(enquiry.preferredDate), 'MMM dd, yyyy')}</TableCell>
+                      <TableCell>{enquiry.guests}</TableCell>
+                      <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Link to={`/quotes/new?enquiryId=${enquiry.id}`}>
+                            <Button variant="ghost" size="icon">
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                              if (!confirm("Delete this enquiry? This cannot be undone.")) return;
+                              try {
+                                await deleteEnquiry(enquiry.id);
+                                setEnquiries((prev) => prev.filter((e) => e.id !== enquiry.id));
+                                toast.success("Enquiry deleted");
+                              } catch (err: any) {
+                                toast.error(err?.message || "Failed to delete enquiry");
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="md:hidden space-y-3">
+            {loading ? (
+              <div className="text-center text-muted-foreground text-sm">Loading enquiries...</div>
+            ) : error ? (
+              <div className="text-center text-destructive text-sm">{error}</div>
+            ) : filteredEnquiries.length === 0 ? (
+              <div className="text-center text-muted-foreground text-sm">No enquiries found</div>
+            ) : (
+              filteredEnquiries.map((enquiry) => (
+                <div key={enquiry.id} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium text-sm">{enquiry.name}</div>
+                    {getStatusBadge(enquiry.status)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {enquiry.eventType} • {format(new Date(enquiry.preferredDate), 'MMM dd, yyyy')}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {enquiry.service} • {enquiry.guests} guests
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Created {format(new Date(enquiry.createdAt), 'MMM dd, yyyy')}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm">
+                      <Eye className="h-4 w-4 mr-1" /> View
+                    </Button>
+                    <Link to={`/quotes/new?enquiryId=${enquiry.id}`}>
+                      <Button variant="outline" size="sm">
+                        <FileText className="h-4 w-4 mr-1" /> Quote
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        if (!confirm("Delete this enquiry? This cannot be undone.")) return;
+                        try {
+                          await deleteEnquiry(enquiry.id);
+                          setEnquiries((prev) => prev.filter((e) => e.id !== enquiry.id));
+                          toast.success("Enquiry deleted");
+                        } catch (err: any) {
+                          toast.error(err?.message || "Failed to delete enquiry");
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
