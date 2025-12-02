@@ -1,9 +1,9 @@
 import type { Enquiry, Quote, Booking, CostingData } from "@/types";
 
-// Force same-origin in the browser to avoid malformed env URLs; fall back to localhost in SSR.
+// Use relative URLs in the browser to avoid any malformed host concatenation.
 const API_BASE =
   typeof window !== "undefined"
-    ? window.location.origin
+    ? ""
     : (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:4000");
 
 const apiFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {

@@ -14,7 +14,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const API_BASE =
   typeof window !== "undefined"
-    ? window.location.origin
+    ? ""
     : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || "http://localhost:4000");
 
 const fetchJson = async (path: string, options: RequestInit = {}) => {
