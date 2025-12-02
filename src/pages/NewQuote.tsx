@@ -69,6 +69,7 @@ export default function NewQuote() {
   const isEdit = Boolean(quoteId);
   const [draftQuoteId] = useState(() => generateId());
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [customer, setCustomer] = useState({ name: "", email: "" });
   const [event, setEvent] = useState({ type: "", location: "", date: "", time: "", guests: 0 });
@@ -399,6 +400,7 @@ export default function NewQuote() {
   };
 
   const handleSave = async () => {
+    if (saving) return;
     setFormError(null);
     if (!customer.name.trim() || !event.type.trim() || !event.location.trim()) {
       setFormError("Name, event type, and location are required.");
@@ -414,6 +416,7 @@ export default function NewQuote() {
       setFormError("Quote total must be greater than zero.");
       return;
     }
+    setSaving(true);
     try {
       let saved: Quote;
       if (isEdit) {
@@ -428,6 +431,8 @@ export default function NewQuote() {
       navigate("/quotes");
     } catch (err: any) {
       toast.error(err?.message || "Failed to save quote");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -966,8 +971,8 @@ export default function NewQuote() {
 
       {/* Actions */}
       <div className="flex gap-3 sticky bottom-4 bg-background/95 backdrop-blur p-4 border rounded-lg">
-        <Button onClick={handleSave} className="flex-1">
-          Save Quote
+        <Button onClick={handleSave} className="flex-1" disabled={saving}>
+          {saving ? "Saving..." : "Save Quote"}
         </Button>
         <Dialog open={invoiceModalOpen} onOpenChange={setInvoiceModalOpen}>
           <DialogTrigger asChild>

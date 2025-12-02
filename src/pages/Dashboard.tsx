@@ -45,8 +45,9 @@ export default function Dashboard() {
     .filter((booking) => booking.paymentStatus !== "PaidInFull")
     .map((booking) => {
       const paid = booking.depositPaid ?? 0;
-      const remaining = Math.max(booking.total - paid, 0);
-      return { booking, remaining };
+      const depositDue = booking.total * 0.5;
+      const remaining = Math.max(depositDue - paid, 0);
+      return { booking, remaining, depositDue, paid };
     })
     .filter(({ remaining }) => remaining > 0)
     .sort((a, b) => new Date(a.booking.event.date).getTime() - new Date(b.booking.event.date).getTime());
@@ -270,7 +271,7 @@ export default function Dashboard() {
           {outstandingByBooking.length === 0 ? (
             <p className="text-sm text-muted-foreground">No deposits outstanding.</p>
           ) : (
-            outstandingByBooking.map(({ booking, remaining }) => (
+            outstandingByBooking.map(({ booking, remaining, depositDue, paid }) => (
               <div key={booking.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
                 <Link to="/bookings" className="space-y-1 hover:underline">
                   <p className="font-medium text-sm">{booking.customer.name}</p>
@@ -282,12 +283,13 @@ export default function Dashboard() {
                   <Badge variant="secondary">
                     {booking.paymentStatus === "DepositPaid" ? "Deposit partial" : "Unpaid"}
                   </Badge>
-                  <div className="text-xs text-muted-foreground">
-                    Paid: {formatCurrency(booking.depositPaid ?? 0)}
+                  <div className="text-xs text-muted-foreground space-y-0.5 text-right sm:text-left">
+                    <div>Paid: {formatCurrency(paid)}</div>
+                    <div>Required: {formatCurrency(depositDue)}</div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold">{formatCurrency(remaining)}</p>
-                    <p className="text-xs text-muted-foreground">of {formatCurrency(booking.total)}</p>
+                    <p className="text-xs text-muted-foreground">deposit remaining</p>
                   </div>
                   <Button
                     size="sm"

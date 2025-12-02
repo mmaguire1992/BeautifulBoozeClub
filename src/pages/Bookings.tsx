@@ -106,6 +106,7 @@ export default function Bookings() {
     return <Badge className={variant.className}>{variant.label}</Badge>;
   };
   const formatCurrency = (value: number) => `€${value.toFixed(2)}`;
+  const depositDue = (booking: Booking) => booking.total * 0.5;
 
   return (
     <div className="space-y-6">
@@ -181,7 +182,7 @@ export default function Bookings() {
                     <div className="flex flex-col gap-1">
                       {getPaymentBadge(booking.paymentStatus)}
                       <span className="text-xs text-muted-foreground">
-                        Paid: {formatCurrency(booking.depositPaid ?? 0)}
+                        Paid: {formatCurrency(booking.depositPaid ?? 0)} / {formatCurrency(depositDue(booking))}
                       </span>
                     </div>
                   </TableCell>
@@ -254,7 +255,7 @@ export default function Bookings() {
                     <div className="text-sm font-semibold">{formatCurrency(booking.total)}</div>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Paid: {formatCurrency(booking.depositPaid ?? 0)} of {formatCurrency(booking.total)}
+                    Paid: {formatCurrency(booking.depositPaid ?? 0)} of {formatCurrency(depositDue(booking))} deposit
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleDepositPaid(booking)}>
