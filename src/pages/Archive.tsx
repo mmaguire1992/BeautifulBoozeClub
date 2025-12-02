@@ -109,7 +109,7 @@ export default function Archive() {
         <CardHeader>
           <CardTitle>Archived</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

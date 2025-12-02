@@ -110,7 +110,7 @@ export default function Quotes() {
         <CardHeader>
           <CardTitle>All Quotes</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

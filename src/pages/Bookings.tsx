@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calendar, CreditCard, CheckCircle2, Trash2, Search, Archive } from "lucide-react";
+import { Calendar, CreditCard, CheckCircle2, Trash2, Search, Archive, Eye } from "lucide-react";
 import { Booking } from "@/types";
 import { format } from "date-fns";
 import { fetchBookings, updateBooking, deleteBooking } from "@/lib/api";
@@ -129,7 +130,7 @@ export default function Bookings() {
         <CardHeader>
           <CardTitle>Bookings</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -177,6 +178,13 @@ export default function Bookings() {
                     <TableCell>{getPaymentBadge(booking.paymentStatus)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {booking.quoteId ? (
+                          <Link to={`/quotes/${booking.quoteId}`}>
+                            <Button variant="ghost" size="icon" title="View quote">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        ) : null}
                         <Button variant="outline" size="sm" onClick={() => handleDepositPaid(booking)}>
                           <CreditCard className="h-4 w-4 mr-1" /> Deposit
                         </Button>
