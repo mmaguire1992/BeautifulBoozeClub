@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Mail, FileText, CheckCircle, Calendar, ArrowRight, PiggyBank, Search } from "lucide-react";
 import { Enquiry, Quote, Booking } from "@/types";
 import { format, isToday, isTomorrow } from "date-fns";
-import { fetchEnquiries, fetchQuotes, fetchBookings } from "@/lib/api";
+import { fetchEnquiries, fetchQuotes, fetchBookings, updateBooking } from "@/lib/api";
 
 export default function Dashboard() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -39,12 +40,15 @@ export default function Dashboard() {
     const bookingDate = new Date(b.event.date);
     return isToday(bookingDate) || isTomorrow(bookingDate);
   });
-  const outstandingDeposits = bookings.reduce((sum, booking) => {
-    if (booking.paymentStatus === "PaidInFull") return sum;
-    const paid = booking.depositPaid ?? 0;
-    const remaining = Math.max(booking.total - paid, 0);
-    return sum + remaining;
-  }, 0);
+  const outstandingByBooking = bookings
+    .filter((booking) => booking.paymentStatus !== "PaidInFull")
+    .map((booking) => {
+      const paid = booking.depositPaid ?? 0;
+      const remaining = Math.max(booking.total - paid, 0);
+      return { booking, remaining };
+    })
+    .filter(({ remaining }) => remaining > 0)
+    .sort((a, b) => new Date(a.booking.event.date).getTime() - new Date(b.booking.event.date).getTime());
 
   const searchResults =
     searchTerm.trim() === ""
@@ -109,6 +113,22 @@ export default function Dashboard() {
           return results.slice(0, 8);
         })();
 
+  const handleDepositReceived = async (booking: Booking) => {
+    const input = prompt("Enter deposit amount received (€)", booking.depositPaid?.toString() ?? "");
+    if (input === null) return;
+    const amount = Number(input);
+    if (Number.isNaN(amount) || amount < 0) return;
+    setSaving(true);
+    try {
+      const updated = await updateBooking(booking.id, { paymentStatus: "DepositPaid", depositPaid: amount });
+      setBookings((prev) => prev.map((b) => (b.id === booking.id ? updated : b)));
+    } catch {
+      // swallow dashboard-level errors
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-8">
       <div>
@@ -116,7 +136,7 @@ export default function Dashboard() {
         <p className="text-muted-foreground mt-1">Welcome to your operations center</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">New Enquiries</CardTitle>
@@ -164,17 +184,6 @@ export default function Dashboard() {
             <Link to="/bookings" className="text-xs text-accent hover:underline flex items-center gap-1 mt-2">
               View calendar <ArrowRight className="h-3 w-3" />
             </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Outstanding Deposits</CardTitle>
-            <PiggyBank className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(outstandingDeposits)}</div>
-            <p className="text-xs text-muted-foreground mt-2">Due before event dates</p>
           </CardContent>
         </Card>
       </div>
@@ -250,6 +259,46 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Deposits Outstanding</CardTitle>
+          <p className="text-sm text-muted-foreground">Per booking breakdown</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {outstandingByBooking.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No deposits outstanding.</p>
+          ) : (
+            outstandingByBooking.map(({ booking, remaining }) => (
+              <div key={booking.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                <Link to="/bookings" className="space-y-1 hover:underline">
+                  <p className="font-medium text-sm">{booking.customer.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {booking.event.type} • {format(new Date(booking.event.date), "MMM dd")} @ {booking.event.location}
+                  </p>
+                </Link>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <Badge variant="secondary">
+                    {booking.paymentStatus === "DepositPaid" ? "Deposit partial" : "Unpaid"}
+                  </Badge>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold">{formatCurrency(remaining)}</p>
+                    <p className="text-xs text-muted-foreground">of {formatCurrency(booking.total)}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={saving}
+                    onClick={() => handleDepositReceived(booking)}
+                  >
+                    Mark deposit received
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
