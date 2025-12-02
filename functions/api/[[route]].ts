@@ -515,9 +515,24 @@ app.post("/api/quotes/:id/accept", requireAuth, async (c) => {
     .bind(id)
     .first<QuoteRow>();
   if (!quoteRow) return c.json({ error: "Not found" }, 404);
-  await c.env.DB.prepare("UPDATE Quote SET status = 'Accepted', updatedAt = ? WHERE id = ?").bind(now, id).run();
-  const bookingId = crypto.randomUUID();
+  const existingBooking = await c.env.DB.prepare(
+    "SELECT id, quoteId, customer, event, total, depositPaid, paymentStatus, status, archived, createdAt FROM Booking WHERE quoteId = ? LIMIT 1"
+  )
+    .bind(id)
+    .first<BookingRow>();
+
   const quote = toQuote(quoteRow);
+  if (quote.status !== "Accepted") {
+    await c.env.DB.prepare("UPDATE Quote SET status = 'Accepted', updatedAt = ? WHERE id = ?").bind(now, id).run();
+    quote.status = "Accepted";
+    quote.updatedAt = now;
+  }
+
+  if (existingBooking) {
+    return c.json({ quote, booking: toBooking(existingBooking) });
+  }
+
+  const bookingId = crypto.randomUUID();
   await c.env.DB.prepare(
     `INSERT INTO Booking (id, quoteId, customer, event, total, depositPaid, paymentStatus, status, archived, createdAt)
      VALUES (?, ?, ?, ?, ?, 0, 'Pending', 'Confirmed', 0, ?)`
@@ -531,13 +546,13 @@ app.post("/api/quotes/:id/accept", requireAuth, async (c) => {
       now
     )
     .run();
-  const updatedQuote = { ...quote, status: "Accepted", updatedAt: now };
+
   const bookingRow = await c.env.DB.prepare(
     "SELECT id, quoteId, customer, event, total, depositPaid, paymentStatus, status, archived, createdAt FROM Booking WHERE id = ?"
   )
     .bind(bookingId)
     .first<BookingRow>();
-  return c.json({ quote: updatedQuote, booking: bookingRow ? toBooking(bookingRow) : null });
+  return c.json({ quote, booking: bookingRow ? toBooking(bookingRow) : null });
 });
 
 // Costing

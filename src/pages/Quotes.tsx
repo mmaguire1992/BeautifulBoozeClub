@@ -25,6 +25,7 @@ export default function Quotes() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -66,6 +67,8 @@ export default function Quotes() {
   };
 
   const handleAccept = async (quote: Quote) => {
+    if (acceptingId === quote.id) return;
+    setAcceptingId(quote.id);
     try {
       const { quote: updated, booking } = await acceptQuote(quote.id);
       setQuotes((prev) => prev.map((q) => (q.id === quote.id ? updated : q)));
@@ -77,6 +80,8 @@ export default function Quotes() {
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to accept quote");
+    } finally {
+      setAcceptingId((current) => (current === quote.id ? null : current));
     }
   };
 
@@ -159,9 +164,14 @@ export default function Quotes() {
                         <TableCell>{getStatusBadge(quote.status)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2 text-muted-foreground">
-                            <Button variant="default" size="sm" onClick={() => handleAccept(quote)}>
-                              Accept
-                            </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleAccept(quote)}
+                            disabled={acceptingId === quote.id}
+                          >
+                            {acceptingId === quote.id ? "Accepting..." : "Accept"}
+                          </Button>
                             <Link to={`/quotes/${quote.id}`}>
                               <Button variant="ghost" size="icon" title="Preview">
                                 <Eye className="h-4 w-4" />
