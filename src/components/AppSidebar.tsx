@@ -3,7 +3,6 @@ import {
   Mail, 
   FileText, 
   Calendar, 
-  Archive, 
   Settings as SettingsIcon 
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -27,7 +26,6 @@ const items = [
   { title: "Enquiries", url: "/enquiries", icon: Mail },
   { title: "Quotes", url: "/quotes", icon: FileText },
   { title: "Bookings", url: "/bookings", icon: Calendar },
-  { title: "Archive", url: "/bookings#archive", icon: Archive },
   { title: "Google Calendar", url: "/google-calendar", icon: Calendar },
   { title: "Settings", url: "/settings", icon: SettingsIcon },
 ];
