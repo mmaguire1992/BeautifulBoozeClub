@@ -15,6 +15,7 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import GoogleCalendar from "./pages/GoogleCalendar";
 import Login from "./pages/Login";
+import Archive from "./pages/Archive";
 import { AuthProvider, RequireAuth } from "./auth";
 
 const queryClient = new QueryClient();
@@ -104,6 +105,16 @@ const App = () => (
                 <RequireAuth>
                   <Layout>
                     <Bookings />
+                  </Layout>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/archive"
+              element={
+                <RequireAuth>
+                  <Layout>
+                    <Archive />
                   </Layout>
                 </RequireAuth>
               }
