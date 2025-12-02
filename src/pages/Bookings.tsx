@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -10,13 +11,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calendar, CreditCard, CheckCircle2, Trash2 } from "lucide-react";
+import { Calendar, CreditCard, CheckCircle2, Trash2, Search } from "lucide-react";
 import { Booking } from "@/types";
-import { format } from "date-fns";
+import { addDays, format, isAfter } from "date-fns";
 import { fetchBookings, updateBooking, deleteBooking } from "@/lib/api";
 
 export default function Bookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -29,6 +31,26 @@ export default function Bookings() {
     };
     load();
   }, []);
+
+  const matchesSearch = (booking: Booking) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      booking.customer.name.toLowerCase().includes(term) ||
+      booking.customer.email.toLowerCase().includes(term) ||
+      booking.event.type.toLowerCase().includes(term) ||
+      booking.event.location.toLowerCase().includes(term)
+    );
+  };
+
+  const withArchiveFlag = bookings.map((booking) => {
+    const eventDate = new Date(booking.event.date);
+    const archiveCutoff = addDays(eventDate, 1);
+    return { booking, isArchived: isAfter(new Date(), archiveCutoff) };
+  });
+
+  const activeBookings = withArchiveFlag.filter(({ isArchived }) => !isArchived && matchesSearch).map(({ booking }) => booking);
+  const archivedBookings = withArchiveFlag.filter(({ isArchived }) => isArchived && matchesSearch).map(({ booking }) => booking);
 
   const updateBookingPayment = async (
     bookingId: string,
@@ -94,9 +116,19 @@ export default function Bookings() {
         </div>
       </div>
 
+      <div className="relative max-w-xl">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          className="pl-8"
+          placeholder="Search bookings by name, email, event, or location"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>All Bookings</CardTitle>
+          <CardTitle>Active Bookings</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -115,14 +147,14 @@ export default function Bookings() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bookings.length === 0 ? (
+              {activeBookings.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center text-muted-foreground">
-                    No bookings found
+                    No active bookings found
                   </TableCell>
                 </TableRow>
               ) : (
-                bookings.map((booking) => (
+                activeBookings.map((booking) => (
                   <TableRow
                     key={booking.id}
                     className={
@@ -152,6 +184,63 @@ export default function Bookings() {
                         <Button variant="default" size="sm" onClick={() => handlePaidInFull(booking)}>
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Paid
                         </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(booking.id)} title="Remove booking">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card id="archive">
+        <CardHeader>
+          <CardTitle>Archived Bookings</CardTitle>
+          <p className="text-sm text-muted-foreground">Events move here the day after they end</p>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Booking #</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Event Type</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Guests</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {archivedBookings.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center text-muted-foreground">
+                    No archived bookings yet
+                  </TableCell>
+                </TableRow>
+              ) : (
+                archivedBookings.map((booking) => (
+                  <TableRow key={booking.id} className="bg-muted/50">
+                    <TableCell className="font-medium">#{booking.id.slice(0, 8)}</TableCell>
+                    <TableCell>{booking.customer.name}</TableCell>
+                    <TableCell>{booking.event.type}</TableCell>
+                    <TableCell>{booking.event.location}</TableCell>
+                    <TableCell>
+                      {format(new Date(booking.event.date), 'MMM dd, yyyy')} at {booking.event.time}
+                    </TableCell>
+                    <TableCell>{booking.event.guests}</TableCell>
+                    <TableCell className="font-semibold">€{booking.total.toFixed(2)}</TableCell>
+                    <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                    <TableCell>{getPaymentBadge(booking.paymentStatus)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(booking.id)} title="Remove booking">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
