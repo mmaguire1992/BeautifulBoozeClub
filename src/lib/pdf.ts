@@ -233,8 +233,6 @@ const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: 
   const { customLines, otherExtras } = partitionExtras(costing.extras);
   const classExtras = otherExtras.filter((item) => item.source === "quoteDerived");
   const remainingExtras = otherExtras.filter((item) => item.source !== "quoteDerived");
-  const classExtras = otherExtras.filter((item) => item.source === "quoteDerived");
-  const remainingExtras = otherExtras.filter((item) => item.source !== "quoteDerived");
   const customLineTotals = getDrinkTotals(customLines);
   const classExtraTotals = getDrinkTotals(classExtras);
   const remainingExtraTotals = getDrinkTotals(remainingExtras);
