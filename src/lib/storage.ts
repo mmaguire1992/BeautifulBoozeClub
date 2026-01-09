@@ -43,6 +43,11 @@ const defaultSettings: Settings = {
     cocktail: { customerPrice: 10.0 },
     wine: { bottleCost: 10, glassesPerBottle: 4, customerPricePerGlass: 8.0 },
   },
+  classPricing: {
+    classicPerHead: 5.4,
+    luxuryPerHead: 7.4,
+    ultimatePerHead: 10.1,
+  },
 };
 
 const mergeSettings = (stored?: Partial<Settings>): Settings => ({
@@ -55,6 +60,7 @@ const mergeSettings = (stored?: Partial<Settings>): Settings => ({
     cocktail: { ...defaultSettings.costTables.cocktail, ...(stored?.costTables?.cocktail || {}) },
     wine: { ...defaultSettings.costTables.wine, ...(stored?.costTables?.wine || {}) },
   },
+  classPricing: { ...defaultSettings.classPricing, ...(stored?.classPricing || {}) },
 });
 
 // Enquiries

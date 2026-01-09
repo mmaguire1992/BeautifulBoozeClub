@@ -1,10 +1,11 @@
-import { 
-  LayoutDashboard, 
-  Mail, 
-  FileText, 
-  Calendar, 
-  Archive, 
-  Settings as SettingsIcon 
+import {
+  LayoutDashboard,
+  Mail,
+  FileText,
+  Calendar,
+  Archive,
+  Settings as SettingsIcon,
+  X,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo-site.png";
+import { Button } from "@/components/ui/button";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -33,15 +35,32 @@ const items = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border p-4">
-        <Link to="/" className="flex items-center justify-center">
-          <img src={logo} alt="The Beautiful Booze Club" className="max-h-60 w-auto object-contain" />
-        </Link>
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-3 md:p-4">
+        <div className="flex items-center justify-between">
+          <Link to="/" className="flex items-center justify-center">
+            <img
+              src={logo}
+              alt="The Beautiful Booze Club"
+              className="h-10 w-auto object-contain md:h-14 md:max-h-60"
+            />
+          </Link>
+          {isMobile ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-sidebar-foreground/80 hover:text-sidebar-foreground"
+              onClick={() => setOpenMobile(false)}
+              aria-label="Close sidebar"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : null}
+        </div>
       </SidebarHeader>
       
       <SidebarContent>
@@ -59,7 +78,7 @@ export function AppSidebar() {
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
                       <item.icon className="h-4 w-4" />
-                      <span className="text-base font-semibold">{item.title}</span>
+                      <span className="text-sm font-semibold md:text-base">{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

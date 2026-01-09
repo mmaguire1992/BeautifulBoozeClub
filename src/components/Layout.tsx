@@ -40,8 +40,10 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </header>
           
-          <main className="flex-1 p-6 bg-muted/30">
-            {children}
+          <main className="flex-1 bg-muted/30 p-4 sm:p-6">
+            <div className="mx-auto w-full max-w-6xl">
+              {children}
+            </div>
           </main>
         </div>
       </div>

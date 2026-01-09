@@ -76,17 +76,37 @@ const defaultWineItem = (
   customerPrice,
 });
 
-const buildExtrasFromQuote = (quote: Quote): DrinkBreakdownItem[] =>
-  quote.lines
-    .filter((line) => line.kind === "custom")
-    .map((line, idx) => ({
-      id: `quote-line-${idx}`,
-      name: line.description || "Custom item",
-      qty: line.qty,
-      cost: line.ownerCost || 0,
-      customerPrice: line.unitPrice,
-      source: "customLine",
-    }));
+const buildExtrasFromQuote = (quote: Quote): DrinkBreakdownItem[] => {
+  const settings = getSettings();
+  const classCosts = {
+    Classic: settings.classPricing.classicPerHead,
+    Luxury: settings.classPricing.luxuryPerHead,
+    Ultimate: settings.classPricing.ultimatePerHead,
+  };
+  return quote.lines
+    .filter((line) => line.kind === "custom" || line.kind === "class")
+    .map((line, idx) => {
+      if (line.kind === "class") {
+        const costPerHead = classCosts[line.tier] ?? 0;
+        return {
+          id: `quote-class-${idx}`,
+          name: line.tier,
+          qty: line.guests,
+          cost: costPerHead,
+          customerPrice: line.pricePerGuest,
+          source: "quoteDerived",
+        };
+      }
+      return {
+        id: `quote-line-${idx}`,
+        name: line.description || "Custom item",
+        qty: line.qty,
+        cost: line.ownerCost || 0,
+        customerPrice: line.unitPrice,
+        source: "customLine",
+      };
+    });
+};
 
 const mergeExtras = (items: DrinkBreakdownItem[]): DrinkBreakdownItem[] => {
   const grouped = new Map<string, DrinkBreakdownItem>();
@@ -109,7 +129,7 @@ const createDefaultCosting = (quote: Quote): CostingData => {
   const costPerGlass = bottleCost / glassesPerBottle;
   const beerCustomer = settings.costTables.beer.customerPrice || 4;
   const wineCustomer = settings.costTables.wine.customerPricePerGlass || 8;
-  const vatRate = quote.vat.enabled ? quote.vat.rate : getSettings().vat.defaultRate;
+  const vatRate = quote.vat.enabled ? quote.vat.rate : 0;
 
   return {
     quoteId: quote.id,
@@ -206,7 +226,7 @@ const normalizeCosting = (costing: CostingData) => {
   return normalizeCosting(updated);
 };
 
-const getOverheadsFromQuote = (quote: Quote, fallbackVat: number) => {
+const getOverheadsFromQuote = (quote: Quote, _fallbackVat: number) => {
   const staffWages = quote.lines
     .filter((line) => line.kind === "staffWork")
     .reduce((sum, line) => sum + calculateLineTotal(line), 0);
@@ -221,7 +241,7 @@ const getOverheadsFromQuote = (quote: Quote, fallbackVat: number) => {
     staffWages: Number(staffWages.toFixed(2)),
     staffTravel: Number(staffTravel.toFixed(2)),
     petrol: Number(petrol.toFixed(2)),
-    vatRate: quote.vat.enabled ? quote.vat.rate : fallbackVat,
+    vatRate: quote.vat.enabled ? quote.vat.rate : 0,
   };
 };
 

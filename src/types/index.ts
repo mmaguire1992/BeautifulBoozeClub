@@ -109,4 +109,9 @@ export type Settings = {
     cocktail: { customerPrice: number };
     wine: { bottleCost: number; glassesPerBottle: number; customerPricePerGlass: number };
   };
+  classPricing: {
+    classicPerHead: number;
+    luxuryPerHead: number;
+    ultimatePerHead: number;
+  };
 };

@@ -39,6 +39,13 @@ const getDrinkTotals = (items: DrinkBreakdownItem[]) => {
   return { cost, revenue };
 };
 
+const formatCurrencyPair = (value: number, rate: number) => ({
+  stack: [
+    { text: formatCurrency(value), style: "valueBold" },
+    { text: formatCurrencyGbp(value * rate), style: "muted" },
+  ],
+});
+
 const partitionExtras = (extras: DrinkBreakdownItem[]) => {
   const customLines = extras.filter((item) => item.source === "customLine");
   const otherExtras = extras.filter((item) => item.source !== "customLine");
@@ -224,6 +231,8 @@ const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: 
   const cocktailTotals = getDrinkTotals(costing.cocktails);
   const wineTotals = getDrinkTotals(flattenWines(costing.wines));
   const { customLines, otherExtras } = partitionExtras(costing.extras);
+  const classExtras = otherExtras.filter((item) => item.source === "quoteDerived");
+  const remainingExtras = otherExtras.filter((item) => item.source !== "quoteDerived");
   const customLineTotals = getDrinkTotals(customLines);
   const otherExtraTotals = getDrinkTotals(otherExtras);
 
@@ -541,14 +550,48 @@ const buildCostingDocDefinition = async ({
   const redTotals = getDrinkTotals(costing.wines.red);
   const whiteTotals = getDrinkTotals(costing.wines.white);
   const { customLines, otherExtras } = partitionExtras(costing.extras);
-  const customLineTotals = getDrinkTotals(customLines);
-  const otherExtraTotals = getDrinkTotals(otherExtras);
   const netAfterVat = costing.totals.profit - costing.totals.vatAmount;
   const overheadRows: Array<[string, string, number, number]> = [
     ["Staff wages", "Labour hours", costing.overheads.staffWages, 0],
     ["Staff travel", "Travel time", costing.overheads.staffTravel, 0],
     ["Petrol", "Fuel", costing.overheads.petrol, 0],
   ].filter(([, , cost]) => cost > 0);
+  const hasValue = (cost: number, revenue: number) => Math.abs(cost) > 0 || Math.abs(revenue) > 0;
+  const rows: any[] = [];
+  const addRow = (label: string, selection: string, cost: number, revenue: number) => {
+    if (!hasValue(cost, revenue)) return;
+    rows.push([
+      label,
+      selection,
+      formatCurrencyPair(cost, fx.rate),
+      formatCurrencyPair(revenue, fx.rate),
+      formatCurrencyPair(revenue - cost, fx.rate),
+    ]);
+  };
+
+  addRow("Bottle Beers", summarizeDrinks(costing.beers), beerTotals.cost, beerTotals.revenue);
+  addRow("Cocktails", summarizeDrinks(costing.cocktails), cocktailTotals.cost, cocktailTotals.revenue);
+  addRow("Red wine (glasses)", summarizeDrinks(costing.wines.red), redTotals.cost, redTotals.revenue);
+  addRow("White wine (glasses)", summarizeDrinks(costing.wines.white), whiteTotals.cost, whiteTotals.revenue);
+
+  customLines.forEach((item) => {
+    const cost = item.qty * item.cost;
+    const revenue = item.qty * item.customerPrice;
+    addRow("Custom item", item.name || "Custom item", cost, revenue);
+  });
+
+  classExtras.forEach((item) => {
+    const cost = item.qty * item.cost;
+    const revenue = item.qty * item.customerPrice;
+    addRow("Cocktail Making Class", item.name || "Cocktail Making Class", cost, revenue);
+  });
+
+  if (remainingExtras.length) {
+    const otherExtraTotals = getDrinkTotals(remainingExtras);
+    addRow("Extras", summarizeDrinks(remainingExtras), otherExtraTotals.cost, otherExtraTotals.revenue);
+  }
+
+  overheadRows.forEach(([label, selection, cost, revenue]) => addRow(label, selection, cost, revenue));
 
   const content: Content[] = [
     buildHeader(settings, "Internal Costing", `Margin snapshot • ${new Date().toLocaleString()}`, logoDataUrl),
@@ -561,67 +604,11 @@ const buildCostingDocDefinition = async ({
           [
             { text: "Category", style: "tableHeader" },
             { text: "Selection", style: "tableHeader" },
-            { text: "Internal (€)", style: "tableHeader", alignment: "right" },
-            { text: "Customer (€)", style: "tableHeader", alignment: "right" },
-            { text: "Profit (€)", style: "tableHeader", alignment: "right" },
+            { text: "Internal (€ / £)", style: "tableHeader", alignment: "right" },
+            { text: "Customer (€ / £)", style: "tableHeader", alignment: "right" },
+            { text: "Profit (€ / £)", style: "tableHeader", alignment: "right" },
           ],
-          [
-            "Bottle Beers",
-            summarizeDrinks(costing.beers),
-            formatCurrency(beerTotals.cost),
-            formatCurrency(beerTotals.revenue),
-            formatCurrency(beerTotals.revenue - beerTotals.cost),
-          ],
-          [
-            "Cocktails",
-            summarizeDrinks(costing.cocktails),
-            formatCurrency(cocktailTotals.cost),
-            formatCurrency(cocktailTotals.revenue),
-            formatCurrency(cocktailTotals.revenue - cocktailTotals.cost),
-          ],
-          [
-            "Red wine (glasses)",
-            summarizeDrinks(costing.wines.red),
-            formatCurrency(redTotals.cost),
-            formatCurrency(redTotals.revenue),
-            formatCurrency(redTotals.revenue - redTotals.cost),
-          ],
-          [
-            "White wine (glasses)",
-            summarizeDrinks(costing.wines.white),
-            formatCurrency(whiteTotals.cost),
-            formatCurrency(whiteTotals.revenue),
-            formatCurrency(whiteTotals.revenue - whiteTotals.cost),
-          ],
-          ...(customLines.length
-            ? [
-                [
-                  "Custom items",
-                  summarizeDrinks(customLines),
-                  formatCurrency(customLineTotals.cost),
-                  formatCurrency(customLineTotals.revenue),
-                  formatCurrency(customLineTotals.revenue - customLineTotals.cost),
-                ],
-              ]
-            : []),
-          ...(otherExtras.length
-            ? [
-                [
-                  "Extras",
-                  summarizeDrinks(otherExtras),
-                  formatCurrency(otherExtraTotals.cost),
-                  formatCurrency(otherExtraTotals.revenue),
-                  formatCurrency(otherExtraTotals.revenue - otherExtraTotals.cost),
-                ],
-              ]
-            : []),
-          ...overheadRows.map(([label, selection, cost, revenue]) => [
-            label,
-            selection,
-            formatCurrency(cost),
-            formatCurrency(revenue),
-            formatCurrency(revenue - cost),
-          ]),
+          ...rows,
         ],
       },
       layout: "lightHorizontalLines",

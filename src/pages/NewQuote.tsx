@@ -222,6 +222,14 @@ export default function NewQuote() {
     load();
   }, [enquiryId, quoteId, navigate, petrolMpg, petrolPrice]);
 
+  useEffect(() => {
+    if (!travelDestination.trim()) return;
+    const timer = window.setTimeout(() => {
+      handleTravelEstimate();
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [travelDestination, travelOrigin]);
+
   const handleTravelEstimate = async () => {
     if (!travelDestination.trim()) {
       setTravelError("Destination is required");
@@ -742,14 +750,10 @@ export default function NewQuote() {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="font-medium">Google Maps Estimate</h3>
-                <Button onClick={handleTravelEstimate} disabled={travelLoading} variant="outline">
-                  {travelLoading ? "Calculating..." : "Calculate"}
-                </Button>
+                <div className="text-xs text-muted-foreground">
+                  {travelLoading ? "Calculating..." : "Auto-updates with destination"}
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Pull distance and petrol estimates from Google Maps to prefill the petrol fields below.
-                Staff travel uses the hourly rate from Settings; enter hours manually. Requires `GOOGLE_MAPS_API_KEY` on the backend.
-              </p>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Origin</Label>

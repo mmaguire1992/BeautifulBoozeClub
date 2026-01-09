@@ -22,6 +22,9 @@ export default function Settings() {
     winePricePerGlass: settings.costTables.wine.customerPricePerGlass.toString(),
     wineBottleCost: settings.costTables.wine.bottleCost.toString(),
     wineGlassesPerBottle: settings.costTables.wine.glassesPerBottle.toString(),
+    classClassic: settings.classPricing.classicPerHead.toString(),
+    classLuxury: settings.classPricing.luxuryPerHead.toString(),
+    classUltimate: settings.classPricing.ultimatePerHead.toString(),
   });
 
   const handleSave = () => {
@@ -51,6 +54,11 @@ export default function Settings() {
           bottleCost: parseFloat(form.wineBottleCost) || 0,
           glassesPerBottle: parseFloat(form.wineGlassesPerBottle) || 1,
         },
+      },
+      classPricing: {
+        classicPerHead: parseFloat(form.classClassic) || 0,
+        luxuryPerHead: parseFloat(form.classLuxury) || 0,
+        ultimatePerHead: parseFloat(form.classUltimate) || 0,
       },
     };
     setSettings(parsed);
@@ -165,6 +173,36 @@ export default function Settings() {
                 step="0.1"
                 value={form.beerPrice}
                 onChange={(e) => setForm({ ...form, beerPrice: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Class Classic cost per head (€)</Label>
+              <Input
+                type="text"
+                min="0"
+                step="0.1"
+                value={form.classClassic}
+                onChange={(e) => setForm({ ...form, classClassic: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Class Luxury cost per head (€)</Label>
+              <Input
+                type="text"
+                min="0"
+                step="0.1"
+                value={form.classLuxury}
+                onChange={(e) => setForm({ ...form, classLuxury: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Class Ultimate cost per head (€)</Label>
+              <Input
+                type="text"
+                min="0"
+                step="0.1"
+                value={form.classUltimate}
+                onChange={(e) => setForm({ ...form, classUltimate: e.target.value })}
               />
             </div>
             <div className="space-y-2">

@@ -150,10 +150,10 @@ export default function Quotes() {
                   </TableRow>
                 ) : (
                   quotes.map((quote) => {
-                    const { totals } = calculateInvoiceTotals(quote, {
-                      includeInternal: false,
-                      costing: undefined,
-                    });
+                    const totals =
+                      Number.isFinite(quote.totals?.gross) && Number.isFinite(quote.totals?.net)
+                        ? quote.totals
+                        : calculateInvoiceTotals(quote, { includeInternal: false, costing: undefined }).totals;
                     return (
                       <TableRow key={quote.id}>
                         <TableCell className="font-medium">#{quote.id.slice(0, 8)}</TableCell>
@@ -212,10 +212,10 @@ export default function Quotes() {
               <div className="text-center text-muted-foreground text-sm">No quotes found</div>
             ) : (
               quotes.map((quote) => {
-                const { totals } = calculateInvoiceTotals(quote, {
-                  includeInternal: false,
-                  costing: undefined,
-                });
+                const totals =
+                  Number.isFinite(quote.totals?.gross) && Number.isFinite(quote.totals?.net)
+                    ? quote.totals
+                    : calculateInvoiceTotals(quote, { includeInternal: false, costing: undefined }).totals;
                 return (
                   <div key={quote.id} className="rounded-lg border p-3 space-y-2">
                     <div className="flex items-center justify-between">
