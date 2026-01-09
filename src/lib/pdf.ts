@@ -234,7 +234,8 @@ const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: 
   const classExtras = otherExtras.filter((item) => item.source === "quoteDerived");
   const remainingExtras = otherExtras.filter((item) => item.source !== "quoteDerived");
   const customLineTotals = getDrinkTotals(customLines);
-  const otherExtraTotals = getDrinkTotals(otherExtras);
+  const classExtraTotals = getDrinkTotals(classExtras);
+  const remainingExtraTotals = getDrinkTotals(remainingExtras);
 
   const categoryRows: Array<[string, string, number, number]> = [
     ["Beers", summarizeDrinks(costing.beers), beerTotals.cost, beerTotals.revenue],
@@ -248,7 +249,8 @@ const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: 
   };
 
   addCategory("Custom items", customLines, customLineTotals);
-  addCategory("Extras", otherExtras, otherExtraTotals);
+  addCategory("Cocktail Making Class", classExtras, classExtraTotals);
+  addCategory("Extras", remainingExtras, remainingExtraTotals);
 
   const overheadRows: Array<[string, number]> = [
     ["Staff wages", costing.overheads.staffWages],

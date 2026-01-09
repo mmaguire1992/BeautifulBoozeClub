@@ -40,13 +40,13 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-3 md:p-4">
+      <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center justify-center">
             <img
               src={logo}
               alt="The Beautiful Booze Club"
-              className="h-10 w-auto object-contain md:h-14 md:max-h-60"
+              className="max-h-60 w-auto object-contain"
             />
           </Link>
           {isMobile ? (
