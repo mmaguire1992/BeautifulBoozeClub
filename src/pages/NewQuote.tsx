@@ -66,6 +66,12 @@ export default function NewQuote() {
   const { quoteId } = useParams();
   const enquiryId = searchParams.get('enquiryId');
   const settings = getSettings();
+  const toDateInput = (value?: string) => {
+    if (!value) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+  };
   const isEdit = Boolean(quoteId);
   const [draftQuoteId] = useState(() => generateId());
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
@@ -143,7 +149,7 @@ export default function NewQuote() {
             setEvent({
               type: enquiry.eventType,
               location: enquiry.location,
-              date: enquiry.preferredDate,
+              date: toDateInput(enquiry.preferredDate),
               time: enquiry.preferredTime,
               guests: enquiry.guests,
             });
@@ -160,7 +166,10 @@ export default function NewQuote() {
           const existing = await fetchQuote(quoteId);
           setOriginalQuote(existing);
           setCustomer(existing.customer);
-          setEvent(existing.event);
+          setEvent({
+            ...existing.event,
+            date: toDateInput(existing.event.date),
+          });
           setGuestInput(String(existing.event.guests ?? "0"));
           setVatEnabled(existing.vat.enabled);
           setVatRate(existing.vat.rate);
