@@ -552,12 +552,16 @@ const buildCostingDocDefinition = async ({
   const redTotals = getDrinkTotals(costing.wines.red);
   const whiteTotals = getDrinkTotals(costing.wines.white);
   const { customLines, otherExtras } = partitionExtras(costing.extras);
+  const classExtras = otherExtras.filter((item) => item.source === "quoteDerived");
+  const remainingExtras = otherExtras.filter((item) => item.source !== "quoteDerived");
   const netAfterVat = costing.totals.profit - costing.totals.vatAmount;
-  const overheadRows: Array<[string, string, number, number]> = [
+  const overheadRows = ([
     ["Staff wages", "Labour hours", costing.overheads.staffWages, 0],
     ["Staff travel", "Travel time", costing.overheads.staffTravel, 0],
     ["Petrol", "Fuel", costing.overheads.petrol, 0],
-  ].filter(([, , cost]) => cost > 0);
+  ] as Array<[string, string, number, number]>).filter(
+    (row): row is [string, string, number, number] => row[2] > 0,
+  );
   const hasValue = (cost: number, revenue: number) => Math.abs(cost) > 0 || Math.abs(revenue) > 0;
   const rows: any[] = [];
   const addRow = (label: string, selection: string, cost: number, revenue: number) => {
