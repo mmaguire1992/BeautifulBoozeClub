@@ -26,6 +26,8 @@ export default function Quotes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const formatMoney = (value: number, currency?: Quote["currency"]) =>
+    `${currency === "GBP" ? "£" : "€"}${value.toFixed(2)}`;
 
   useEffect(() => {
     const load = async () => {
@@ -160,7 +162,9 @@ export default function Quotes() {
                         <TableCell>{quote.customer.name}</TableCell>
                         <TableCell>{quote.event.type}</TableCell>
                         <TableCell>{format(new Date(quote.event.date), 'MMM dd, yyyy')}</TableCell>
-                        <TableCell className="font-semibold">€{totals.gross.toFixed(2)}</TableCell>
+                        <TableCell className="font-semibold">
+                          {formatMoney(totals.gross, quote.currency)}
+                        </TableCell>
                         <TableCell>{getStatusBadge(quote.status)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2 text-muted-foreground">
@@ -225,7 +229,7 @@ export default function Quotes() {
                     <div className="text-xs text-muted-foreground">
                       {quote.event.type} • {format(new Date(quote.event.date), 'MMM dd, yyyy')}
                     </div>
-                    <div className="text-sm font-semibold">€{totals.gross.toFixed(2)}</div>
+                    <div className="text-sm font-semibold">{formatMoney(totals.gross, quote.currency)}</div>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="default" size="sm" onClick={() => handleAccept(quote)}>
                         Accept

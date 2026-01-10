@@ -38,6 +38,8 @@ export type Quote = {
   lines: QuoteLine[];
   vat: { enabled: boolean; rate: number };
   totals: { net: number; vat: number; gross: number };
+  currency: "EUR" | "GBP";
+  fxRate?: number;
   status: 'Draft' | 'Sent' | 'Accepted' | 'Declined' | 'Expired';
   createdAt: string;
   updatedAt: string;
@@ -91,6 +93,10 @@ export type Settings = {
     name: string;
     address: string;
     logoUrl?: string;
+  };
+  currency: {
+    default: "EUR" | "GBP";
+    gbpRate: number;
   };
   vat: {
     defaultEnabled: boolean;

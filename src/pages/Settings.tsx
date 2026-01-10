@@ -13,6 +13,8 @@ export default function Settings() {
   const [form, setForm] = useState({
     businessName: settings.business.name,
     businessAddress: settings.business.address,
+    currencyDefault: settings.currency.default,
+    currencyRate: settings.currency.gbpRate.toString(),
     vatRate: settings.vat.defaultRate.toString(),
     travelMpg: settings.travel.defaultMpg.toString(),
     staffWork: settings.hourlyRates.staffWork.toString(),
@@ -33,6 +35,10 @@ export default function Settings() {
         name: form.businessName,
         address: form.businessAddress,
         logoUrl: settings.business.logoUrl,
+      },
+      currency: {
+        default: form.currencyDefault as SettingsType["currency"]["default"],
+        gbpRate: parseFloat(form.currencyRate) || settings.currency.gbpRate,
       },
       vat: {
         defaultEnabled: settings.vat.defaultEnabled,
@@ -94,6 +100,35 @@ export default function Settings() {
               <Input
                 value={form.businessAddress}
                 onChange={(e) => setForm({ ...form, businessAddress: e.target.value })}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Currency Defaults</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Default Currency</Label>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={form.currencyDefault}
+                onChange={(e) => setForm({ ...form, currencyDefault: e.target.value })}
+              >
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Default EUR→GBP rate</Label>
+              <Input
+                type="text"
+                min="0"
+                step="0.0001"
+                value={form.currencyRate}
+                onChange={(e) => setForm({ ...form, currencyRate: e.target.value })}
               />
             </div>
           </CardContent>

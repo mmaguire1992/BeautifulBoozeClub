@@ -78,10 +78,12 @@ const defaultWineItem = (
 
 const buildExtrasFromQuote = (quote: Quote): DrinkBreakdownItem[] => {
   const settings = getSettings();
+  const fxRate = quote.fxRate ?? settings.currency.gbpRate;
+  const convert = (value: number) => (quote.currency === "GBP" ? value * fxRate : value);
   const classCosts = {
-    Classic: settings.classPricing.classicPerHead,
-    Luxury: settings.classPricing.luxuryPerHead,
-    Ultimate: settings.classPricing.ultimatePerHead,
+    Classic: convert(settings.classPricing.classicPerHead),
+    Luxury: convert(settings.classPricing.luxuryPerHead),
+    Ultimate: convert(settings.classPricing.ultimatePerHead),
   };
   return quote.lines
     .filter((line) => line.kind === "custom" || line.kind === "class")
@@ -124,16 +126,18 @@ const mergeExtras = (items: DrinkBreakdownItem[]): DrinkBreakdownItem[] => {
 
 const createDefaultCosting = (quote: Quote): CostingData => {
   const settings = getSettings();
+  const fxRate = quote.fxRate ?? settings.currency.gbpRate;
+  const convert = (value: number) => (quote.currency === "GBP" ? value * fxRate : value);
   const glassesPerBottle = settings.costTables.wine.glassesPerBottle || 4;
-  const bottleCost = settings.costTables.wine.bottleCost || 10;
+  const bottleCost = convert(settings.costTables.wine.bottleCost || 10);
   const costPerGlass = bottleCost / glassesPerBottle;
-  const beerCustomer = settings.costTables.beer.customerPrice || 4;
-  const wineCustomer = settings.costTables.wine.customerPricePerGlass || 8;
+  const beerCustomer = convert(settings.costTables.beer.customerPrice || 4);
+  const wineCustomer = convert(settings.costTables.wine.customerPricePerGlass || 8);
   const vatRate = quote.vat.enabled ? quote.vat.rate : 0;
 
   return {
     quoteId: quote.id,
-    beers: buildDefaultBeers(beerCustomer).map((b) => ({ ...b })),
+    beers: buildDefaultBeers(beerCustomer).map((b) => ({ ...b, cost: convert(b.cost) })),
     cocktails: [],
     wines: {
       bottleCounts: { red: 0, white: 0 },
@@ -195,25 +199,27 @@ const normalizeCosting = (costing: CostingData) => {
   return { ...normalized, totals: calculateCosting(normalized) };
 };
 
-  const applyCostingDefaults = (data: CostingData) => {
-    const settings = getSettings();
-    const defaultCocktailPrice = settings.costTables.cocktail.customerPrice || 0;
-    const defaultBeerPrice = settings.costTables.beer.customerPrice || 0;
-    const wineSettings = settings.costTables.wine;
-    const glassesPerBottle = wineSettings.glassesPerBottle || 1;
-    const bottleCost = wineSettings.bottleCost || 0;
-    const costPerGlass = bottleCost / glassesPerBottle;
-    const wineCustomerPrice = wineSettings.customerPricePerGlass || 0;
+const applyCostingDefaults = (data: CostingData, quote: Quote) => {
+  const settings = getSettings();
+  const fxRate = quote.fxRate ?? settings.currency.gbpRate;
+  const convert = (value: number) => (quote.currency === "GBP" ? value * fxRate : value);
+  const defaultCocktailPrice = convert(settings.costTables.cocktail.customerPrice || 0);
+  const defaultBeerPrice = convert(settings.costTables.beer.customerPrice || 0);
+  const wineSettings = settings.costTables.wine;
+  const glassesPerBottle = wineSettings.glassesPerBottle || 1;
+  const bottleCost = convert(wineSettings.bottleCost || 0);
+  const costPerGlass = bottleCost / glassesPerBottle;
+  const wineCustomerPrice = convert(wineSettings.customerPricePerGlass || 0);
 
-    const updated = {
-      ...data,
-      beers: data.beers.map((b) => ({
-        ...b,
-        customerPrice: defaultBeerPrice,
-      })),
-      cocktails: data.cocktails
-        .map((c) => ({ ...c, customerPrice: defaultCocktailPrice }))
-        .filter((c) => !(cocktailOptions.some((preset) => preset.id === c.id) && c.qty === 0)),
+  const updated = {
+    ...data,
+    beers: data.beers.map((b) => ({
+      ...b,
+      customerPrice: defaultBeerPrice,
+    })),
+    cocktails: data.cocktails
+      .map((c) => ({ ...c, customerPrice: defaultCocktailPrice }))
+      .filter((c) => !(cocktailOptions.some((preset) => preset.id === c.id) && c.qty === 0)),
     wines: {
       ...data.wines,
       glassesPerBottle,
@@ -273,6 +279,10 @@ export default function CostingWorkspace({ quote, onChange }: CostingWorkspacePr
   const [costing, setCosting] = useState<CostingData | null>(null);
   const [selectedCocktailId, setSelectedCocktailId] = useState<string>(cocktailOptions[0]?.id || "");
   const [selectedCocktailQty, setSelectedCocktailQty] = useState<number>(1);
+  const currencySymbol = quote.currency === "GBP" ? "£" : "€";
+  const formatMoney = (value: number) => `${currencySymbol}${value.toFixed(2)}`;
+  const fxRate = quote.fxRate ?? getSettings().currency.gbpRate;
+  const convertPresetCost = (value: number) => (quote.currency === "GBP" ? value * fxRate : value);
 
   useEffect(() => {
     const load = async () => {
@@ -288,10 +298,10 @@ export default function CostingWorkspace({ quote, onChange }: CostingWorkspacePr
       }
       const chosen = remote ?? base;
       const withOverheads = applyQuoteOverheads(chosen, quote);
-      setCosting(applyCostingDefaults(withOverheads));
+      setCosting(applyCostingDefaults(withOverheads, quote));
     };
     load();
-  }, [quote.id]);
+  }, [quote.id, quote.currency, quote.fxRate]);
 
   const quoteOverheadsKey = useMemo(
     () => JSON.stringify(getOverheadsFromQuote(quote, quote.vat.rate)),
@@ -390,7 +400,7 @@ export default function CostingWorkspace({ quote, onChange }: CostingWorkspacePr
         name: "Custom beer",
         qty: 0,
         cost: 0,
-        customerPrice: getSettings().costTables.beer.customerPrice,
+        customerPrice: convertPresetCost(getSettings().costTables.beer.customerPrice),
       });
       return normalizeCosting(clone);
     });
@@ -400,7 +410,8 @@ export default function CostingWorkspace({ quote, onChange }: CostingWorkspacePr
     if (!costing || !selectedCocktailId) return;
     const option = cocktailOptions.find((c) => c.id === selectedCocktailId);
     if (!option) return;
-    const defaultPrice = getSettings().costTables.cocktail.customerPrice || 0;
+    const defaultPrice = convertPresetCost(getSettings().costTables.cocktail.customerPrice || 0);
+    const convertedCost = convertPresetCost(option.cost);
 
     setCosting((prev) => {
       if (!prev) return prev;
@@ -410,12 +421,14 @@ export default function CostingWorkspace({ quote, onChange }: CostingWorkspacePr
       if (existing) {
         existing.customerPrice = defaultPrice;
         existing.qty = qtyToUse;
+        existing.cost = convertedCost;
         return normalizeCosting(clone);
       }
       clone.cocktails.push({
         ...option,
         qty: qtyToUse,
         customerPrice: defaultPrice,
+        cost: convertedCost,
       });
       return normalizeCosting(clone);
     });
@@ -432,7 +445,7 @@ export default function CostingWorkspace({ quote, onChange }: CostingWorkspacePr
         name: "Custom cocktail",
         qty: 0,
         cost: 0,
-        customerPrice: getSettings().costTables.cocktail.customerPrice,
+        customerPrice: convertPresetCost(getSettings().costTables.cocktail.customerPrice),
       });
       return normalizeCosting(clone);
     });
@@ -519,8 +532,8 @@ const updateWineBottles = (kind: "red" | "white", bottles: number) => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Cost (€)</TableHead>
-                  <TableHead>Customer €</TableHead>
+                  <TableHead>Cost ({currencySymbol})</TableHead>
+                  <TableHead>Customer ({currencySymbol})</TableHead>
                   <TableHead className="text-right">Qty (bottles)</TableHead>
                 </TableRow>
               </TableHeader>
@@ -572,8 +585,8 @@ const updateWineBottles = (kind: "red" | "white", bottles: number) => {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Bottle cost €{costing.wines.bottleCost} / {costing.wines.glassesPerBottle} glasses ⇒ €
-              {(costing.wines.bottleCost / costing.wines.glassesPerBottle || 0).toFixed(2)} per glass
+              Bottle cost {formatMoney(costing.wines.bottleCost)} / {costing.wines.glassesPerBottle} glasses ⇒{" "}
+              {formatMoney(costing.wines.bottleCost / costing.wines.glassesPerBottle || 0)} per glass
             </p>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
@@ -609,10 +622,10 @@ const updateWineBottles = (kind: "red" | "white", bottles: number) => {
                   >
                     <div className="flex-1 min-w-[180px]">
                       <p className="font-medium">{wine.name}</p>
-                      <p className="text-sm text-muted-foreground">€{wine.cost.toFixed(2)} cost</p>
+                      <p className="text-sm text-muted-foreground">{formatMoney(wine.cost)} cost</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground">Customer €</Label>
+                      <Label className="text-xs text-muted-foreground">Customer {currencySymbol}</Label>
                       <Input
                         type="number"
                         min="0"
@@ -647,10 +660,10 @@ const updateWineBottles = (kind: "red" | "white", bottles: number) => {
                   >
                     <div className="flex-1 min-w-[180px]">
                       <p className="font-medium">{wine.name}</p>
-                      <p className="text-sm text-muted-foreground">€{wine.cost.toFixed(2)} cost</p>
+                      <p className="text-sm text-muted-foreground">{formatMoney(wine.cost)} cost</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground">Customer €</Label>
+                      <Label className="text-xs text-muted-foreground">Customer {currencySymbol}</Label>
                       <Input
                         type="number"
                         min="0"
@@ -702,7 +715,7 @@ const updateWineBottles = (kind: "red" | "white", bottles: number) => {
                 <SelectContent>
                   {cocktailOptions.map((option) => (
                     <SelectItem key={option.id} value={option.id}>
-                      {option.name} — €{option.cost.toFixed(2)} cost
+                      {option.name} — {formatMoney(convertPresetCost(option.cost))} cost
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -738,7 +751,7 @@ const updateWineBottles = (kind: "red" | "white", bottles: number) => {
                   <div className="flex-1 min-w-[180px]">
                     <p className="font-medium">{cocktail.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Cost €{cocktail.cost.toFixed(2)} • Customer €{cocktail.customerPrice.toFixed(2)}
+                      Cost {formatMoney(cocktail.cost)} • Customer {formatMoney(cocktail.customerPrice)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -769,7 +782,7 @@ const updateWineBottles = (kind: "red" | "white", bottles: number) => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Staff wages (€)</Label>
+              <Label>Staff wages ({currencySymbol})</Label>
               <Input
                 type="number"
                 min="0"
@@ -786,7 +799,7 @@ const updateWineBottles = (kind: "red" | "white", bottles: number) => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Staff travel (€)</Label>
+              <Label>Staff travel ({currencySymbol})</Label>
               <Input
                 type="number"
                 min="0"
@@ -803,7 +816,7 @@ const updateWineBottles = (kind: "red" | "white", bottles: number) => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Petrol (€)</Label>
+              <Label>Petrol ({currencySymbol})</Label>
               <Input
                 type="number"
                 min="0"
@@ -829,30 +842,30 @@ const updateWineBottles = (kind: "red" | "white", bottles: number) => {
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1">
               <p className="text-muted-foreground text-sm">Internal cost (incl. overheads)</p>
-              <p className="text-2xl font-bold">€{costing.totals.internalCost.toFixed(2)}</p>
+              <p className="text-2xl font-bold">{formatMoney(costing.totals.internalCost)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-muted-foreground text-sm">Customer total (ex VAT)</p>
-              <p className="text-2xl font-bold text-primary">€{costing.totals.customerTotal.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-primary">{formatMoney(costing.totals.customerTotal)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-muted-foreground text-sm">VAT (@ {costing.overheads.vatRate}%)</p>
-              <p className="text-lg font-semibold">€{costing.totals.vatAmount.toFixed(2)}</p>
+              <p className="text-lg font-semibold">{formatMoney(costing.totals.vatAmount)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-muted-foreground text-sm">Projected profit</p>
-              <p className="text-2xl font-bold">€{costing.totals.profit.toFixed(2)}</p>
+              <p className="text-2xl font-bold">{formatMoney(costing.totals.profit)}</p>
               <p className="text-sm text-muted-foreground">Margin {costing.totals.marginPct.toFixed(1)}%</p>
             </div>
             <Separator className="md:col-span-2" />
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Beverage cost (COGS)</p>
-              <p className="text-lg font-medium">€{beverageCost.toFixed(2)}</p>
+              <p className="text-lg font-medium">{formatMoney(beverageCost)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Overheads (staff + petrol)</p>
               <p className="text-lg font-medium">
-                €{(costing.overheads.staffWages + costing.overheads.staffTravel + costing.overheads.petrol).toFixed(2)}
+                {formatMoney(costing.overheads.staffWages + costing.overheads.staffTravel + costing.overheads.petrol)}
               </p>
             </div>
           </CardContent>

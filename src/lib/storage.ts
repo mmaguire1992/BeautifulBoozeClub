@@ -27,6 +27,10 @@ const defaultSettings: Settings = {
     name: 'The Beautiful Booze Club',
     address: '',
   },
+  currency: {
+    default: "EUR",
+    gbpRate: 0.85,
+  },
   vat: {
     defaultEnabled: true,
     defaultRate: 23,
@@ -52,6 +56,7 @@ const defaultSettings: Settings = {
 
 const mergeSettings = (stored?: Partial<Settings>): Settings => ({
   business: { ...defaultSettings.business, ...(stored?.business || {}) },
+  currency: { ...defaultSettings.currency, ...(stored?.currency || {}) },
   vat: { ...defaultSettings.vat, ...(stored?.vat || {}) },
   travel: { ...defaultSettings.travel, ...(stored?.travel || {}) },
   hourlyRates: { ...defaultSettings.hourlyRates, ...(stored?.hourlyRates || {}) },

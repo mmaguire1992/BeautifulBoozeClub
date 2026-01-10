@@ -23,7 +23,8 @@ import {
   updateQuoteStatus,
 } from "@/lib/api";
 
-const formatCurrency = (value: number) => `€${value.toFixed(2)}`;
+const formatCurrency = (value: number, currency?: Quote["currency"]) =>
+  `${currency === "GBP" ? "£" : "€"}${value.toFixed(2)}`;
 
 export default function QuoteDetails() {
   const { quoteId } = useParams();
@@ -54,6 +55,7 @@ export default function QuoteDetails() {
     [quote, costing]
   );
   const totals = invoice?.totals ?? quote?.totals;
+  const currency = quote?.currency ?? "EUR";
 
   const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -304,12 +306,12 @@ export default function QuoteDetails() {
                 <CardTitle>Totals</CardTitle>
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
-                <p>Subtotal: <span className="font-semibold">{formatCurrency(totals?.net ?? 0)}</span></p>
+                <p>Subtotal: <span className="font-semibold">{formatCurrency(totals?.net ?? 0, currency)}</span></p>
                 {quote.vat.enabled && (
-                  <p>VAT ({quote.vat.rate}%): <span className="font-semibold">{formatCurrency(totals?.vat ?? 0)}</span></p>
+                  <p>VAT ({quote.vat.rate}%): <span className="font-semibold">{formatCurrency(totals?.vat ?? 0, currency)}</span></p>
                 )}
                 <p className="text-lg font-bold text-primary">
-                  Grand Total: {formatCurrency(totals?.gross ?? 0)}
+                  Grand Total: {formatCurrency(totals?.gross ?? 0, currency)}
                 </p>
               </CardContent>
             </Card>
@@ -339,7 +341,7 @@ export default function QuoteDetails() {
                         <TableCell>{line.description}</TableCell>
                         {invoice.lines.some((l) => l.showAmount !== false) && (
                           <TableCell className="text-right font-medium">
-                            {line.showAmount === false ? "" : formatCurrency(line.amount)}
+                            {line.showAmount === false ? "" : formatCurrency(line.amount, currency)}
                           </TableCell>
                         )}
                       </TableRow>

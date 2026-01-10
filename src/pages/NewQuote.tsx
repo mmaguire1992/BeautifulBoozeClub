@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,6 +66,16 @@ export default function NewQuote() {
   const { quoteId } = useParams();
   const enquiryId = searchParams.get('enquiryId');
   const settings = getSettings();
+  const [currency, setCurrency] = useState<"EUR" | "GBP">(settings.currency.default);
+  const [fxRate, setFxRate] = useState(settings.currency.gbpRate);
+  const currencySymbol = currency === "GBP" ? "£" : "€";
+  const formatMoney = (value: number) => `${currencySymbol}${value.toFixed(2)}`;
+  const convertAmount = (value: number, from: "EUR" | "GBP", to: "EUR" | "GBP") => {
+    if (from === to) return value;
+    if (from === "EUR" && to === "GBP") return value * fxRate;
+    if (from === "GBP" && to === "EUR") return fxRate > 0 ? value / fxRate : value;
+    return value;
+  };
   const toDateInput = (value?: string) => {
     if (!value) return "";
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -94,16 +104,16 @@ export default function NewQuote() {
   const [classEnabled, setClassEnabled] = useState(false);
   const [classTier, setClassTier] = useState<'Classic' | 'Luxury' | 'Ultimate'>('Classic');
   const [classGuests, setClassGuests] = useState(0);
-  const classPrices: Record<ClassType['tier'], number> = {
+  const [classPrices, setClassPrices] = useState<Record<ClassType['tier'], number>>({
     Classic: 39,
     Luxury: 49,
     Ultimate: 60,
-  };
+  });
 
   // Boozy Brunch
   const [brunchEnabled, setBrunchEnabled] = useState(false);
   const [brunchGuests, setBrunchGuests] = useState(0);
-  const brunchPrice = 45;
+  const [brunchPrice, setBrunchPrice] = useState(45);
 
   // Custom Package (priced per cocktail)
   const [guestFeeEnabled, setGuestFeeEnabled] = useState(false);
@@ -137,6 +147,7 @@ export default function NewQuote() {
   // Custom Items
   const [customItems, setCustomItems] = useState<CustomItem[]>([]);
   const [costing, setCosting] = useState<CostingData | null>(null);
+  const prevCurrencyRef = useRef<"EUR" | "GBP">("EUR");
 
   useEffect(() => {
     const load = async () => {
@@ -165,6 +176,9 @@ export default function NewQuote() {
         try {
           const existing = await fetchQuote(quoteId);
           setOriginalQuote(existing);
+          setCurrency(existing.currency ?? settings.currency.default);
+          setFxRate(existing.fxRate ?? settings.currency.gbpRate);
+          prevCurrencyRef.current = existing.currency ?? settings.currency.default;
           setCustomer(existing.customer);
           setEvent({
             ...existing.event,
@@ -176,16 +190,22 @@ export default function NewQuote() {
           existing.lines.forEach((line) => {
             switch (line.kind) {
               case "package":
-                setPackages((prev) => prev.map((p) => (p.name === line.name ? { ...p, qty: line.qty } : p)));
+                setPackages((prev) =>
+                  prev.map((p) =>
+                    p.name === line.name ? { ...p, qty: line.qty, price: line.unitPrice } : p
+                  )
+                );
                 break;
               case "class":
                 setClassEnabled(true);
                 setClassTier(line.tier);
                 setClassGuests(line.guests);
+                setClassPrices((prev) => ({ ...prev, [line.tier]: line.pricePerGuest }));
                 break;
               case "boozyBrunch":
                 setBrunchEnabled(true);
                 setBrunchGuests(line.guests);
+                setBrunchPrice(line.pricePerGuest);
                 break;
               case "guestFee":
                 setGuestFeeEnabled(true);
@@ -230,6 +250,32 @@ export default function NewQuote() {
     };
     load();
   }, [enquiryId, quoteId, navigate, petrolMpg, petrolPrice]);
+
+  useEffect(() => {
+    const prevCurrency = prevCurrencyRef.current;
+    if (prevCurrency === currency) return;
+    setPackages((prev) =>
+      prev.map((pkg) => ({
+        ...pkg,
+        price: round2(convertAmount(pkg.price, prevCurrency, currency)),
+      }))
+    );
+    setClassPrices((prev) => ({
+      Classic: round2(convertAmount(prev.Classic, prevCurrency, currency)),
+      Luxury: round2(convertAmount(prev.Luxury, prevCurrency, currency)),
+      Ultimate: round2(convertAmount(prev.Ultimate, prevCurrency, currency)),
+    }));
+    setBrunchPrice((prev) => round2(convertAmount(prev, prevCurrency, currency)));
+    setGuestFeeCustomerPrice((prev) => round2(convertAmount(prev, prevCurrency, currency)));
+    setCustomItems((prev) =>
+      prev.map((item) => ({
+        ...item,
+        unitPrice: round2(convertAmount(item.unitPrice, prevCurrency, currency)),
+        ownerCost: round2(convertAmount(item.ownerCost, prevCurrency, currency)),
+      }))
+    );
+    prevCurrencyRef.current = currency;
+  }, [currency, fxRate]);
 
   useEffect(() => {
     if (!travelDestination.trim()) return;
@@ -401,6 +447,8 @@ export default function NewQuote() {
       lines,
       vat: { enabled: vatEnabled, rate: vatRate },
       totals: { net: 0, vat: 0, gross: 0 },
+      currency,
+      fxRate,
       status,
       createdAt,
       updatedAt: new Date().toISOString(),
@@ -589,6 +637,34 @@ export default function NewQuote() {
                 }}
               />
           </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value as "EUR" | "GBP")}
+              >
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+              </select>
+            </div>
+            {currency === "GBP" ? (
+              <div className="space-y-2">
+                <Label>FX rate (EUR→GBP)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.0001"
+                  value={fxRate}
+                  onChange={(e) => setFxRate(parseFloat(e.target.value) || 0)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Prices convert once when switching to GBP. Edit values below if needed.
+                </p>
+              </div>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
 
@@ -606,7 +682,28 @@ export default function NewQuote() {
               <div key={pkg.name} className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
                   <p className="font-medium">{pkg.name} Package</p>
-                  <p className="text-sm text-muted-foreground">{pkg.cocktails} cocktails - €{pkg.price}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {pkg.cocktails} cocktails - {formatMoney(pkg.price)}
+                  </p>
+                  {currency === "GBP" ? (
+                    <div className="mt-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={pkg.price}
+                        onChange={(e) =>
+                          setPackages((prev) =>
+                            prev.map((p) =>
+                              p.name === pkg.name ? { ...p, price: parseFloat(e.target.value) || 0 } : p
+                            )
+                          )
+                        }
+                        className="w-32"
+                        aria-label={`${pkg.name} price`}
+                      />
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-3">
                   <Button
@@ -626,7 +723,7 @@ export default function NewQuote() {
                     <Plus className="h-4 w-4" />
                   </Button>
                   <span className="w-24 text-right font-semibold">
-                    €{(pkg.price * pkg.qty).toFixed(2)}
+                    {formatMoney(pkg.price * pkg.qty)}
                   </span>
                 </div>
               </div>
@@ -656,10 +753,31 @@ export default function NewQuote() {
                       onClick={() => setClassTier(tier)}
                       className="flex-1"
                     >
-                      {tier} (€{classPrices[tier]})
+                      {tier} ({formatMoney(classPrices[tier])})
                     </Button>
                   ))}
                 </div>
+                {currency === "GBP" ? (
+                  <div className="grid gap-2 pt-2 sm:grid-cols-3">
+                    {(['Classic', 'Luxury', 'Ultimate'] as const).map((tier) => (
+                      <div key={`${tier}-price`} className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">{tier} price</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={classPrices[tier]}
+                          onChange={(e) =>
+                            setClassPrices((prev) => ({
+                              ...prev,
+                              [tier]: parseFloat(e.target.value) || 0,
+                            }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label>Number of Guests</Label>
@@ -673,7 +791,7 @@ export default function NewQuote() {
             </div>
             <div className="text-right">
               <span className="font-semibold text-lg">
-                Total: €{(classPrices[classTier] * classGuests).toFixed(2)}
+                Total: {formatMoney(classPrices[classTier] * classGuests)}
               </span>
             </div>
           </CardContent>
@@ -684,12 +802,24 @@ export default function NewQuote() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Boozy Brunch (€{brunchPrice} per guest)</CardTitle>
+            <CardTitle>Boozy Brunch ({formatMoney(brunchPrice)} per guest)</CardTitle>
             <Switch checked={brunchEnabled} onCheckedChange={setBrunchEnabled} />
           </div>
         </CardHeader>
         {brunchEnabled && (
           <CardContent className="space-y-4">
+            {currency === "GBP" ? (
+              <div className="space-y-2">
+                <Label>Price per guest</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={brunchPrice}
+                  onChange={(e) => setBrunchPrice(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            ) : null}
             <div className="space-y-2">
               <Label>Number of Guests</Label>
               <Input
@@ -701,7 +831,7 @@ export default function NewQuote() {
             </div>
             <div className="text-right">
               <span className="font-semibold text-lg">
-                Total: €{(brunchPrice * brunchGuests).toFixed(2)}
+                Total: {formatMoney(brunchPrice * brunchGuests)}
               </span>
             </div>
           </CardContent>
@@ -729,7 +859,7 @@ export default function NewQuote() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Customer price per cocktail (€)</Label>
+              <Label>Customer price per cocktail ({currencySymbol})</Label>
               <Input
                 type="number"
                 min="0"
@@ -743,7 +873,7 @@ export default function NewQuote() {
             </div>
             <div className="text-right">
               <span className="font-semibold text-lg">
-                Total: €{(guestFeeCustomerPrice * getGuestFeeCount()).toFixed(2)}
+                Total: {formatMoney(guestFeeCustomerPrice * getGuestFeeCount())}
               </span>
             </div>
           </CardContent>
@@ -888,8 +1018,8 @@ export default function NewQuote() {
             <>
               <div className="hidden md:grid grid-cols-[1fr_140px_140px_96px_96px_48px] gap-3 text-xs font-semibold text-muted-foreground px-1">
                 <span>Description</span>
-                <span>Cost</span>
-                <span>Customer</span>
+                <span>Cost ({currencySymbol})</span>
+                <span>Customer ({currencySymbol})</span>
                 <span>Qty</span>
                 <span className="text-right">Total</span>
                 <span className="sr-only">Actions</span>
@@ -909,7 +1039,7 @@ export default function NewQuote() {
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder="Cost"
+                  placeholder={`Cost (${currencySymbol})`}
                   aria-label="Cost"
                   title="Cost"
                   value={item.ownerCost}
@@ -920,9 +1050,9 @@ export default function NewQuote() {
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder="Customer price (what you charge)"
-                  aria-label="Customer price (what you charge)"
-                  title="Customer price (what you charge)"
+                  placeholder={`Customer price (${currencySymbol})`}
+                  aria-label={`Customer price (${currencySymbol})`}
+                  title={`Customer price (${currencySymbol})`}
                   value={item.unitPrice}
                   onChange={(e) => updateCustomItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
                   className="w-full"
@@ -936,7 +1066,7 @@ export default function NewQuote() {
                   className="w-full"
                 />
                 <span className="text-right font-semibold">
-                  €{(item.unitPrice * item.qty).toFixed(2)}
+                  {formatMoney(item.unitPrice * item.qty)}
                 </span>
                 <Button
                   variant="ghost"
@@ -966,18 +1096,18 @@ export default function NewQuote() {
         <CardContent className="space-y-3">
           <div className="flex justify-between text-sm">
             <span>Subtotal:</span>
-            <span className="font-semibold">€{totals.net.toFixed(2)}</span>
+            <span className="font-semibold">{formatMoney(totals.net)}</span>
           </div>
           {vatEnabled && (
             <div className="flex justify-between text-sm">
               <span>VAT ({vatRate}%):</span>
-              <span className="font-semibold">€{totals.vat.toFixed(2)}</span>
+              <span className="font-semibold">{formatMoney(totals.vat)}</span>
             </div>
           )}
           <Separator />
           <div className="flex justify-between text-lg font-bold">
             <span>Grand Total:</span>
-            <span className="text-accent">€{totals.gross.toFixed(2)}</span>
+            <span className="text-accent">{formatMoney(totals.gross)}</span>
           </div>
         </CardContent>
       </Card>
