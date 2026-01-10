@@ -18,6 +18,8 @@ type QuoteRow = {
   updatedAt: string;
   status: string;
   enquiryId?: string | null;
+  currency?: string | null;
+  fxRate?: number | null;
   customer: string;
   event: string;
   lines: string;
@@ -151,6 +153,8 @@ const toQuote = (row: QuoteRow) => ({
   updatedAt: row.updatedAt,
   status: row.status,
   enquiryId: row.enquiryId || undefined,
+  currency: row.currency || "EUR",
+  fxRate: row.fxRate ?? undefined,
   customer: parseJSON(row.customer, {}),
   event: parseJSON(row.event, {}),
   lines: parseJSON(row.lines, []),
@@ -397,7 +401,7 @@ app.delete("/api/enquiries/:id", requireAuth, async (c) => {
 // Quotes CRUD
 app.get("/api/quotes", requireAuth, async (c) => {
   const res = await c.env.DB.prepare(
-    "SELECT id, createdAt, updatedAt, status, enquiryId, customer, event, lines, vat, totals FROM Quote ORDER BY datetime(createdAt) DESC"
+    "SELECT id, createdAt, updatedAt, status, enquiryId, currency, fxRate, customer, event, lines, vat, totals FROM Quote ORDER BY datetime(createdAt) DESC"
   ).all<QuoteRow>();
   return c.json((res.results || []).map(toQuote));
 });
@@ -405,7 +409,7 @@ app.get("/api/quotes", requireAuth, async (c) => {
 app.get("/api/quotes/:id", requireAuth, async (c) => {
   const id = c.req.param("id");
   const res = await c.env.DB.prepare(
-    "SELECT id, createdAt, updatedAt, status, enquiryId, customer, event, lines, vat, totals FROM Quote WHERE id = ?"
+    "SELECT id, createdAt, updatedAt, status, enquiryId, currency, fxRate, customer, event, lines, vat, totals FROM Quote WHERE id = ?"
   )
     .bind(id)
     .first<QuoteRow>();
@@ -421,9 +425,11 @@ app.post("/api/quotes", requireAuth, async (c) => {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const status = body.status || "Draft";
+  const currency = body.currency || "EUR";
+  const fxRate = typeof body.fxRate === "number" ? body.fxRate : null;
   await c.env.DB.prepare(
-    `INSERT INTO Quote (id, createdAt, updatedAt, status, enquiryId, customer, event, lines, vat, totals)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO Quote (id, createdAt, updatedAt, status, enquiryId, currency, fxRate, customer, event, lines, vat, totals)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       id,
@@ -431,6 +437,8 @@ app.post("/api/quotes", requireAuth, async (c) => {
       now,
       status,
       body.enquiryId || null,
+      currency,
+      fxRate,
       JSON.stringify(body.customer),
       JSON.stringify(body.event),
       JSON.stringify(body.lines),
@@ -444,6 +452,8 @@ app.post("/api/quotes", requireAuth, async (c) => {
     updatedAt: now,
     status,
     enquiryId: body.enquiryId || null,
+    currency,
+    fxRate,
     customer: body.customer,
     event: body.event,
     lines: body.lines,
@@ -457,11 +467,13 @@ app.put("/api/quotes/:id", requireAuth, async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as any;
   const now = new Date().toISOString();
   const res = await c.env.DB.prepare(
-    "UPDATE Quote SET status = coalesce(?, status), enquiryId = coalesce(?, enquiryId), customer = ?, event = ?, lines = ?, vat = ?, totals = ?, updatedAt = ? WHERE id = ?"
+    "UPDATE Quote SET status = coalesce(?, status), enquiryId = coalesce(?, enquiryId), currency = coalesce(?, currency), fxRate = coalesce(?, fxRate), customer = ?, event = ?, lines = ?, vat = ?, totals = ?, updatedAt = ? WHERE id = ?"
   )
     .bind(
       body.status || null,
       "enquiryId" in body ? body.enquiryId || null : null,
+      body.currency || null,
+      typeof body.fxRate === "number" ? body.fxRate : null,
       JSON.stringify(body.customer ?? {}),
       JSON.stringify(body.event ?? {}),
       JSON.stringify(body.lines ?? []),
@@ -473,7 +485,7 @@ app.put("/api/quotes/:id", requireAuth, async (c) => {
     .run();
   if (res.success && res.meta.changes === 0) return c.json({ error: "Not found" }, 404);
   const updated = await c.env.DB.prepare(
-    "SELECT id, createdAt, updatedAt, status, enquiryId, customer, event, lines, vat, totals FROM Quote WHERE id = ?"
+    "SELECT id, createdAt, updatedAt, status, enquiryId, currency, fxRate, customer, event, lines, vat, totals FROM Quote WHERE id = ?"
   )
     .bind(id)
     .first<QuoteRow>();

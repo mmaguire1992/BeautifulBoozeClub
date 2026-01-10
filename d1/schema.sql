@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS Quote (
   updatedAt TEXT DEFAULT (datetime('now')),
   status TEXT NOT NULL,
   enquiryId TEXT,
+  currency TEXT DEFAULT 'EUR',
+  fxRate REAL,
   customer TEXT NOT NULL, -- JSON string
   event TEXT NOT NULL,    -- JSON string
   lines TEXT NOT NULL,    -- JSON string
