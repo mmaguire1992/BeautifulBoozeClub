@@ -64,7 +64,7 @@ export type DrinkBreakdownItem = {
   qty: number;
   cost: number; // internal cost per unit
   customerPrice: number; // sell price per unit (ex VAT)
-  source?: 'customLine' | 'customPackage' | 'quoteDerived';
+  source?: 'customLine' | 'customPackage' | 'quoteDerivedClass' | 'quoteDerivedBrunch' | 'quoteDerivedGuestFee';
 };
 
 export type CostingData = {

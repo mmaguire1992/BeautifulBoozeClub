@@ -86,7 +86,7 @@ const buildExtrasFromQuote = (quote: Quote): DrinkBreakdownItem[] => {
     Ultimate: convert(settings.classPricing.ultimatePerHead),
   };
   return quote.lines
-    .filter((line) => line.kind === "custom" || line.kind === "class")
+    .filter((line) => line.kind === "custom" || line.kind === "class" || line.kind === "boozyBrunch" || line.kind === "guestFee")
     .map((line, idx) => {
       if (line.kind === "class") {
         const costPerHead = classCosts[line.tier] ?? 0;
@@ -96,7 +96,27 @@ const buildExtrasFromQuote = (quote: Quote): DrinkBreakdownItem[] => {
           qty: line.guests,
           cost: costPerHead,
           customerPrice: line.pricePerGuest,
-          source: "quoteDerived",
+          source: "quoteDerivedClass",
+        };
+      }
+      if (line.kind === "boozyBrunch") {
+        return {
+          id: `quote-brunch-${idx}`,
+          name: "Boozy Brunch",
+          qty: line.guests,
+          cost: 0,
+          customerPrice: line.pricePerGuest,
+          source: "quoteDerivedBrunch",
+        };
+      }
+      if (line.kind === "guestFee") {
+        return {
+          id: `quote-guestfee-${idx}`,
+          name: "Custom Package",
+          qty: line.guests,
+          cost: 0,
+          customerPrice: line.pricePerGuest,
+          source: "quoteDerivedGuestFee",
         };
       }
       return {

@@ -267,10 +267,19 @@ const buildCostingSection = (
   const cocktailTotals = getDrinkTotals(costing.cocktails);
   const wineTotals = getDrinkTotals(flattenWines(costing.wines));
   const { customLines, otherExtras } = partitionExtras(costing.extras);
-  const classExtras = otherExtras.filter((item) => item.source === "quoteDerived");
-  const remainingExtras = otherExtras.filter((item) => item.source !== "quoteDerived");
+  const classExtras = otherExtras.filter((item) => item.source === "quoteDerivedClass");
+  const brunchExtras = otherExtras.filter((item) => item.source === "quoteDerivedBrunch");
+  const guestFeeExtras = otherExtras.filter((item) => item.source === "quoteDerivedGuestFee");
+  const remainingExtras = otherExtras.filter(
+    (item) =>
+      item.source !== "quoteDerivedClass" &&
+      item.source !== "quoteDerivedBrunch" &&
+      item.source !== "quoteDerivedGuestFee",
+  );
   const customLineTotals = getDrinkTotals(customLines);
   const classExtraTotals = getDrinkTotals(classExtras);
+  const brunchExtraTotals = getDrinkTotals(brunchExtras);
+  const guestFeeTotals = getDrinkTotals(guestFeeExtras);
   const remainingExtraTotals = getDrinkTotals(remainingExtras);
 
   const categoryRows: Array<[string, string, number, number]> = [
@@ -286,6 +295,8 @@ const buildCostingSection = (
 
   addCategory("Custom items", customLines, customLineTotals);
   addCategory("Cocktail Making Class", classExtras, classExtraTotals);
+  addCategory("Boozy Brunch", brunchExtras, brunchExtraTotals);
+  addCategory("Custom Package", guestFeeExtras, guestFeeTotals);
   addCategory("Extras", remainingExtras, remainingExtraTotals);
 
   const overheadRows: Array<[string, number]> = [
@@ -609,8 +620,15 @@ const buildCostingDocDefinition = async ({
   const redTotals = getDrinkTotals(costing.wines.red);
   const whiteTotals = getDrinkTotals(costing.wines.white);
   const { customLines, otherExtras } = partitionExtras(costing.extras);
-  const classExtras = otherExtras.filter((item) => item.source === "quoteDerived");
-  const remainingExtras = otherExtras.filter((item) => item.source !== "quoteDerived");
+  const classExtras = otherExtras.filter((item) => item.source === "quoteDerivedClass");
+  const brunchExtras = otherExtras.filter((item) => item.source === "quoteDerivedBrunch");
+  const guestFeeExtras = otherExtras.filter((item) => item.source === "quoteDerivedGuestFee");
+  const remainingExtras = otherExtras.filter(
+    (item) =>
+      item.source !== "quoteDerivedClass" &&
+      item.source !== "quoteDerivedBrunch" &&
+      item.source !== "quoteDerivedGuestFee",
+  );
   const netAfterVat = costing.totals.profit - costing.totals.vatAmount;
   const overheadRows = ([
     ["Staff wages", "Labour hours", costing.overheads.staffWages, 0],
@@ -647,6 +665,18 @@ const buildCostingDocDefinition = async ({
     const cost = item.qty * item.cost;
     const revenue = item.qty * item.customerPrice;
     addRow("Cocktail Making Class", item.name || "Cocktail Making Class", cost, revenue);
+  });
+
+  brunchExtras.forEach((item) => {
+    const cost = item.qty * item.cost;
+    const revenue = item.qty * item.customerPrice;
+    addRow("Boozy Brunch", item.name || "Boozy Brunch", cost, revenue);
+  });
+
+  guestFeeExtras.forEach((item) => {
+    const cost = item.qty * item.cost;
+    const revenue = item.qty * item.customerPrice;
+    addRow("Custom Package", item.name || "Custom Package", cost, revenue);
   });
 
   if (remainingExtras.length) {
