@@ -526,7 +526,7 @@ const buildQuoteDocDefinition = async ({
     buildEventDetails(quote),
     buildLinesTable(lines, currency),
     buildTotalsBlock(totals, quote.vat.enabled, { subtotal: "Subtotal", total: "Total" }, currency),
-    buildFxBlock(totals, fxRateToUse, fxFetchedAt, currency),
+    currency === "EUR" ? buildFxBlock(totals, fxRateToUse, fxFetchedAt, currency) : null,
     config.note ? { text: config.note, style: "muted", margin: [0, 8, 0, 0] } : null,
   ];
 
@@ -717,16 +717,18 @@ const buildCostingDocDefinition = async ({
       { subtotal: "Internal Cost", total: "Customer Total" },
       currency
     ),
-    buildFxBlock(
-      {
-        net: costing.totals.internalCost,
-        vat: 0,
-        gross: costing.totals.customerTotal,
-      },
-      fxRateToUse,
-      fxFetchedAt,
-      currency
-    ),
+    currency === "EUR"
+      ? buildFxBlock(
+          {
+            net: costing.totals.internalCost,
+            vat: 0,
+            gross: costing.totals.customerTotal,
+          },
+          fxRateToUse,
+          fxFetchedAt,
+          currency
+        )
+      : null,
     {
       text: `Projected Profit: ${formatCurrency(costing.totals.profit, currency)}${
         fxRateToUse
