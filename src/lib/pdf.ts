@@ -25,8 +25,10 @@ type OwnerTravelSummary = {
   petrolCost: number | null;
 };
 
-const formatCurrency = (value: number) => `€${value.toFixed(2)}`;
+const formatCurrency = (value: number, currency: "EUR" | "GBP" = "EUR") =>
+  `${currency === "GBP" ? "£" : "€"}${value.toFixed(2)}`;
 const formatCurrencyGbp = (value: number) => `£${value.toFixed(2)}`;
+const formatCurrencyEur = (value: number) => `€${value.toFixed(2)}`;
 
 const summarizeDrinks = (items: DrinkBreakdownItem[]) => {
   const nonZero = items.filter((item) => item.qty > 0);
@@ -39,12 +41,23 @@ const getDrinkTotals = (items: DrinkBreakdownItem[]) => {
   return { cost, revenue };
 };
 
-const formatCurrencyPair = (value: number, rate: number) => ({
-  stack: [
-    { text: formatCurrency(value), style: "valueBold" },
-    { text: formatCurrencyGbp(value * rate), style: "muted" },
-  ],
-});
+const formatCurrencyPair = (value: number, currency: "EUR" | "GBP", rate: number) => {
+  if (currency === "GBP") {
+    const eurValue = rate > 0 ? value / rate : value;
+    return {
+      stack: [
+        { text: formatCurrency(value, "GBP"), style: "valueBold" },
+        { text: formatCurrencyEur(eurValue), style: "muted" },
+      ],
+    };
+  }
+  return {
+    stack: [
+      { text: formatCurrency(value, "EUR"), style: "valueBold" },
+      { text: formatCurrencyGbp(value * rate), style: "muted" },
+    ],
+  };
+};
 
 const partitionExtras = (extras: DrinkBreakdownItem[]) => {
   const customLines = extras.filter((item) => item.source === "customLine");
@@ -129,53 +142,71 @@ const buildCompanyInfo = (): Content => ({
   margin: [0, 8, 0, 0],
 });
 
-const buildFxBlock = (totals: { net: number; vat: number; gross: number }, rate: number, fetchedAt: string): Content => ({
-  table: {
-    widths: ["*", "auto"],
-    body: [
-      [
-        { text: "FX Conversion (EUR→GBP)", style: "label" },
-        { text: `Rate: ${rate.toFixed(4)} • ${new Date(fetchedAt).toLocaleString()}`, style: "muted", alignment: "right" },
+const buildFxBlock = (
+  totals: { net: number; vat: number; gross: number },
+  rate: number,
+  fetchedAt: string,
+  currency: "EUR" | "GBP"
+): Content => {
+  const isGbp = currency === "GBP";
+  const label = isGbp ? "FX Conversion (GBP→EUR)" : "FX Conversion (EUR→GBP)";
+  const convert = (value: number) => (isGbp ? (rate > 0 ? value / rate : value) : value * rate);
+  const currencyLabel = isGbp ? "EUR" : "GBP";
+  const formatConverted = isGbp ? formatCurrencyEur : formatCurrencyGbp;
+
+  return {
+    table: {
+      widths: ["*", "auto"],
+      body: [
+        [
+          { text: label, style: "label" },
+          {
+            text: `Rate: ${rate.toFixed(4)} • ${new Date(fetchedAt).toLocaleString()}`,
+            style: "muted",
+            alignment: "right",
+          },
+        ],
+        [
+          { text: `Subtotal (${currencyLabel})`, style: "label" },
+          { text: formatConverted(convert(totals.net)), style: "valueRight" },
+        ],
+        [
+          { text: `VAT (${currencyLabel})`, style: "label" },
+          { text: formatConverted(convert(totals.vat)), style: "valueRight" },
+        ],
+        [
+          { text: `Total (${currencyLabel})`, style: "label" },
+          { text: formatConverted(convert(totals.gross)), style: "total" },
+        ],
       ],
-      [
-        { text: "Subtotal (GBP)", style: "label" },
-        { text: formatCurrencyGbp(totals.net * rate), style: "valueRight" },
-      ],
-      [
-        { text: "VAT (GBP)", style: "label" },
-        { text: formatCurrencyGbp(totals.vat * rate), style: "valueRight" },
-      ],
-      [
-        { text: "Total (GBP)", style: "label" },
-        { text: formatCurrencyGbp(totals.gross * rate), style: "total" },
-      ],
-    ],
-  },
-  layout: "lightHorizontalLines",
-  margin: [0, 8, 0, 0],
-});
+    },
+    layout: "lightHorizontalLines",
+    margin: [0, 8, 0, 0],
+  };
+};
 
 const buildTotalsBlock = (
   totals: { net: number; vat: number; gross: number },
   vatEnabled: boolean,
-  labels: { subtotal: string; total: string } = { subtotal: "Subtotal", total: "Total" }
+  labels: { subtotal: string; total: string } = { subtotal: "Subtotal", total: "Total" },
+  currency: "EUR" | "GBP" = "EUR"
 ): Content => ({
   table: {
     widths: ["*", "auto"],
     body: [
       [
         { text: labels.subtotal, style: "label" },
-        { text: formatCurrency(totals.net), style: "valueRight" },
+        { text: formatCurrency(totals.net, currency), style: "valueRight" },
       ],
       vatEnabled
         ? [
             { text: "VAT", style: "label" },
-            { text: formatCurrency(totals.vat), style: "valueRight" },
+            { text: formatCurrency(totals.vat, currency), style: "valueRight" },
           ]
         : null,
       [
         { text: labels.total, style: "label" },
-        { text: formatCurrency(totals.gross), style: "total" },
+        { text: formatCurrency(totals.gross, currency), style: "total" },
       ],
     ].filter(Boolean) as any[],
   },
@@ -183,11 +214,11 @@ const buildTotalsBlock = (
   margin: [0, 8, 0, 0],
 });
 
-const buildLinesTable = (lines: InvoiceLine[]): Content => {
+const buildLinesTable = (lines: InvoiceLine[], currency: "EUR" | "GBP"): Content => {
   const hasVisibleAmounts = lines.some((line) => line.showAmount !== false);
   const headerRow = [{ text: "Description", style: "tableHeader" }];
   if (hasVisibleAmounts) {
-    headerRow.push({ text: "Amount (€)", style: "tableHeader", alignment: "right" });
+    headerRow.push({ text: `Amount (${currency})`, style: "tableHeader", alignment: "right" });
   }
 
   const body = [
@@ -196,7 +227,7 @@ const buildLinesTable = (lines: InvoiceLine[]): Content => {
       const row: any[] = [{ text: line.description, style: "value" }];
       if (hasVisibleAmounts) {
         row.push({
-          text: line.showAmount === false ? "" : formatCurrency(line.amount),
+          text: line.showAmount === false ? "" : formatCurrency(line.amount, currency),
           alignment: "right",
           style: "valueBold",
         });
@@ -222,7 +253,12 @@ const buildLinesTable = (lines: InvoiceLine[]): Content => {
   };
 };
 
-const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: number): Content => {
+const buildCostingSection = (
+  costing?: CostingData,
+  booking?: Booking,
+  fxRate?: number,
+  currency: "EUR" | "GBP" = "EUR"
+): Content => {
   if (!costing) {
     return { text: "No costing data. Use the costing tab on the quote to add beverage and overhead details.", style: "muted" };
   }
@@ -259,9 +295,21 @@ const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: 
   ];
 
   const marginPct = (revenue: number, cost: number) => (revenue > 0 ? ((revenue - cost) / revenue) * 100 : 0);
-  const profitGbp = fxRate ? costing.totals.profit * fxRate : null;
+  const profitAlt = fxRate
+    ? currency === "GBP"
+      ? fxRate > 0
+        ? costing.totals.profit / fxRate
+        : null
+      : costing.totals.profit * fxRate
+    : null;
   const netAfterVat = costing.totals.profit - costing.totals.vatAmount;
-  const netAfterVatGbp = fxRate ? netAfterVat * fxRate : null;
+  const netAfterVatAlt = fxRate
+    ? currency === "GBP"
+      ? fxRate > 0
+        ? netAfterVat / fxRate
+        : null
+      : netAfterVat * fxRate
+    : null;
 
   return {
     stack: [
@@ -282,9 +330,9 @@ const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: 
             ...categoryRows.map(([name, selection, cost, revenue]) => [
               { text: name, style: "value" },
               { text: selection, style: "muted" },
-              { text: formatCurrency(cost), alignment: "right", style: "value" },
-              { text: formatCurrency(revenue), alignment: "right", style: "valueBold" },
-              { text: formatCurrency(revenue - cost), alignment: "right", style: "valueBold" },
+              { text: formatCurrency(cost, currency), alignment: "right", style: "value" },
+              { text: formatCurrency(revenue, currency), alignment: "right", style: "valueBold" },
+              { text: formatCurrency(revenue - cost, currency), alignment: "right", style: "valueBold" },
               { text: `${marginPct(revenue, cost).toFixed(1)}%`, alignment: "right", style: "muted" },
             ]),
           ],
@@ -295,20 +343,26 @@ const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: 
       buildTotalsBlock(
         { net: costing.totals.internalCost, vat: costing.totals.vatAmount, gross: costing.totals.customerTotal },
         costing.overheads.vatRate > 0,
-        { subtotal: "Internal Cost", total: "Customer Total (ex VAT)" }
+        { subtotal: "Internal Cost", total: "Customer Total (ex VAT)" },
+        currency
       ),
       {
-        text: `Profit: ${formatCurrency(costing.totals.profit)}${
-          profitGbp ? ` / ${formatCurrencyGbp(profitGbp)}` : ""
+        text: `Profit: ${formatCurrency(costing.totals.profit, currency)}${
+          profitAlt
+            ? ` / ${currency === "GBP" ? formatCurrencyEur(profitAlt) : formatCurrencyGbp(profitAlt)}`
+            : ""
         } (${costing.totals.marginPct.toFixed(1)}%) • VAT @ ${costing.overheads.vatRate}%: ${formatCurrency(
-          costing.totals.vatAmount
+          costing.totals.vatAmount,
+          currency
         )}`,
         style: "muted",
         margin: [0, 6, 0, 8],
       },
       {
-        text: `Profit after remitting VAT: ${formatCurrency(netAfterVat)}${
-          netAfterVatGbp ? ` / ${formatCurrencyGbp(netAfterVatGbp)}` : ""
+        text: `Profit after remitting VAT: ${formatCurrency(netAfterVat, currency)}${
+          netAfterVatAlt
+            ? ` / ${currency === "GBP" ? formatCurrencyEur(netAfterVatAlt) : formatCurrencyGbp(netAfterVatAlt)}`
+            : ""
         }`,
         style: "muted",
         margin: [0, 0, 0, 8],
@@ -320,7 +374,7 @@ const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: 
             [{ text: "Overheads", style: "tableHeader", colSpan: 2, alignment: "left" }, {}],
             ...overheadRows.map(([label, value]) => [
               { text: label, style: "value" },
-              { text: formatCurrency(value), alignment: "right", style: "value" },
+              { text: formatCurrency(value, currency), alignment: "right", style: "value" },
             ]),
           ],
         },
@@ -343,7 +397,7 @@ const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: 
                   { text: `Status: ${booking.status}`, style: "value" },
                   { text: `Payment: ${booking.paymentStatus}`, style: "value" },
                   booking.depositPaid
-                    ? { text: `Deposit received: ${formatCurrency(booking.depositPaid)}`, style: "muted" }
+                    ? { text: `Deposit received: ${formatCurrency(booking.depositPaid, currency)}`, style: "muted" }
                     : { text: "Deposit not recorded", style: "muted" },
                 ],
               }
@@ -356,7 +410,7 @@ const buildCostingSection = (costing?: CostingData, booking?: Booking, fxRate?: 
   };
 };
 
-const buildTravelSection = (travel?: OwnerTravelSummary): Content | null => {
+const buildTravelSection = (travel?: OwnerTravelSummary, currency: "EUR" | "GBP" = "EUR"): Content | null => {
   if (!travel) return null;
   return {
     stack: [
@@ -383,7 +437,7 @@ const buildTravelSection = (travel?: OwnerTravelSummary): Content | null => {
             ],
             [
               { text: "Petrol est.", style: "label" },
-              { text: travel.petrolCost !== null ? formatCurrency(travel.petrolCost) : "—", style: "value" },
+              { text: travel.petrolCost !== null ? formatCurrency(travel.petrolCost, currency) : "—", style: "value" },
             ],
           ],
         },
@@ -451,20 +505,23 @@ const buildQuoteDocDefinition = async ({
   const lines = buildInvoiceLines(quote, { includeInternal: variant === "owner", costing });
   const totals = invoice.totals;
   const booking = variant === "owner" ? getBookingForQuote(quote) : undefined;
+  const currency = quote.currency ?? "EUR";
   const fx = await getEurToGbpRate();
+  const fxRateToUse = quote.fxRate ?? settings.currency.gbpRate ?? fx.rate;
+  const fxFetchedAt = quote.fxRate ? new Date().toISOString() : fx.fetchedAt;
 
   const content: Content[] = [
     buildHeader(settings, config.title, `${config.subtitle} • ${new Date().toLocaleDateString()}`, logoDataUrl),
     buildEventDetails(quote),
-    buildLinesTable(lines),
-    buildTotalsBlock(totals, quote.vat.enabled),
-    buildFxBlock(totals, fx.rate, fx.fetchedAt),
+    buildLinesTable(lines, currency),
+    buildTotalsBlock(totals, quote.vat.enabled, { subtotal: "Subtotal", total: "Total" }, currency),
+    buildFxBlock(totals, fxRateToUse, fxFetchedAt, currency),
     config.note ? { text: config.note, style: "muted", margin: [0, 8, 0, 0] } : null,
   ];
 
   if (variant === "owner") {
-    content.push(buildCostingSection(costing, booking, fx.rate));
-    const travelBlock = buildTravelSection(ownerContext?.travel);
+    content.push(buildCostingSection(costing, booking, fxRateToUse, currency));
+    const travelBlock = buildTravelSection(ownerContext?.travel, currency);
     if (travelBlock) content.push(travelBlock);
   } else {
     content.push(buildCompanyInfo());
@@ -569,9 +626,9 @@ const buildCostingDocDefinition = async ({
     rows.push([
       label,
       selection,
-      formatCurrencyPair(cost, fx.rate),
-      formatCurrencyPair(revenue, fx.rate),
-      formatCurrencyPair(revenue - cost, fx.rate),
+      formatCurrencyPair(cost, currency, fxRateToUse),
+      formatCurrencyPair(revenue, currency, fxRateToUse),
+      formatCurrencyPair(revenue - cost, currency, fxRateToUse),
     ]);
   };
 
@@ -627,7 +684,8 @@ const buildCostingDocDefinition = async ({
         gross: costing.totals.customerTotal,
       },
       false,
-      { subtotal: "Internal Cost", total: "Customer Total" }
+      { subtotal: "Internal Cost", total: "Customer Total" },
+      currency
     ),
     buildFxBlock(
       {
@@ -635,21 +693,37 @@ const buildCostingDocDefinition = async ({
         vat: 0,
         gross: costing.totals.customerTotal,
       },
-      fx.rate,
-      fx.fetchedAt
+      fxRateToUse,
+      fxFetchedAt,
+      currency
     ),
     {
-      text: `Projected Profit: ${formatCurrency(costing.totals.profit)}${fx.rate ? ` / ${formatCurrencyGbp(
-        costing.totals.profit * fx.rate
-      )}` : ""} (${costing.totals.marginPct.toFixed(1)}%) • VAT @ ${costing.overheads.vatRate}%: ${formatCurrency(
-        costing.totals.vatAmount
+      text: `Projected Profit: ${formatCurrency(costing.totals.profit, currency)}${
+        fxRateToUse
+          ? ` / ${
+              currency === "GBP"
+                ? formatCurrencyEur(
+                    fxRateToUse > 0 ? costing.totals.profit / fxRateToUse : costing.totals.profit
+                  )
+                : formatCurrencyGbp(costing.totals.profit * fxRateToUse)
+            }`
+          : ""
+      } (${costing.totals.marginPct.toFixed(1)}%) • VAT @ ${costing.overheads.vatRate}%: ${formatCurrency(
+        costing.totals.vatAmount,
+        currency
       )}`,
       style: "muted",
       margin: [0, 8, 0, 0],
     },
     {
-      text: `Profit after remitting VAT: ${formatCurrency(netAfterVat)}${
-        fx.rate ? ` / ${formatCurrencyGbp(netAfterVat * fx.rate)}` : ""
+      text: `Profit after remitting VAT: ${formatCurrency(netAfterVat, currency)}${
+        fxRateToUse
+          ? ` / ${
+              currency === "GBP"
+                ? formatCurrencyEur(fxRateToUse > 0 ? netAfterVat / fxRateToUse : netAfterVat)
+                : formatCurrencyGbp(netAfterVat * fxRateToUse)
+            }`
+          : ""
       }`,
       style: "muted",
       margin: [0, 0, 0, 0],
